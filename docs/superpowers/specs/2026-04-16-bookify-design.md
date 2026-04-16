@@ -350,5 +350,10 @@ V2 adds this as an additional enrichment layer in Stage 3, triggered only when a
 
 - EPUB or HTML output (PDF only)
 - Interactive web UI
-- Cloud deployment
 - Multi-playlist support
+
+---
+
+## 18. V3 Scope (Post V2, Low Priority)
+
+- Cloud deployment — host the pipeline as a web service so users can submit a playlist URL and receive a PDF without running locally
