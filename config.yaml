@@ -1,0 +1,13 @@
+llm:
+  provider: openai        # or: anthropic
+  model: gpt-4o           # or: claude-opus-4-6
+  temperature: 0.3
+
+pipeline:
+  batch_size: 4           # parallel videos per mini-batch
+  whisper_model: large-v3
+
+paths:
+  checkpoints: checkpoints
+  output: output
+  audio_temp: checkpoints/audio

@@ -1,0 +1,11 @@
+checkpoints/
+output/
+*.pyc
+__pycache__/
+.env
+*.egg-info/
+dist/
+.pytest_cache/
+.worktrees/
+*.mp3
+*.wav
