@@ -33,10 +33,13 @@ def test_fetch_video_audio_skips_if_checkpoint_exists(tmp_checkpoints, mocker):
 
 
 def test_fetch_video_audio_saves_checkpoint(tmp_checkpoints, mocker):
-    mocker.patch("pipeline.fetcher.YoutubeDL")
+    mock_ydl_class = mocker.patch("pipeline.fetcher.YoutubeDL")
+    mock_ydl = MagicMock()
+    mock_ydl_class.return_value.__enter__.return_value = mock_ydl
+    mock_ydl.extract_info.return_value = {"description": "Paper: https://arxiv.org/abs/1706.03762", "title": "Attention"}
     mocker.patch("pipeline.fetcher.filter_description_urls", return_value=["https://arxiv.org/abs/1706.03762"])
     fetch_video_audio(
-        {"video_id": "vid2", "title": "Attention", "description": "Paper: https://arxiv.org/abs/1706.03762", "playlist_index": 1},
+        {"video_id": "vid2", "title": "Attention", "description": "", "playlist_index": 1},
         llm_client=MagicMock(),
         base_dir=tmp_checkpoints,
     )

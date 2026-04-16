@@ -1,6 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Dict
+from urllib.parse import urlparse, parse_qs
 
 from yt_dlp import YoutubeDL
 
@@ -9,11 +10,21 @@ from utils.checkpoint import save_checkpoint, load_checkpoint, checkpoint_exists
 from utils.url_filter import filter_description_urls
 
 
+def _playlist_url(url: str) -> str:
+    """Extract pure playlist URL from any YouTube URL format."""
+    parsed = urlparse(url)
+    params = parse_qs(parsed.query)
+    if "list" in params:
+        return f"https://www.youtube.com/playlist?list={params['list'][0]}"
+    return url
+
+
 def extract_playlist_videos(playlist_url: str) -> List[Dict]:
     """Fetch all video metadata from a playlist without downloading."""
-    ydl_opts = {"quiet": True, "extract_flat": True, "skip_download": True}
+    clean_url = _playlist_url(playlist_url)
+    ydl_opts = {"quiet": True, "extract_flat": "in_playlist", "skip_download": True}
     with YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(playlist_url, download=False)
+        info = ydl.extract_info(clean_url, download=False)
     return [
         {
             "video_id": entry["id"],
@@ -38,7 +49,15 @@ def fetch_video_audio(
     audio_dir = Path(audio_dir)
     audio_dir.mkdir(parents=True, exist_ok=True)
     audio_path = str(audio_dir / f"{vid}.mp3")
+    video_url = f"https://www.youtube.com/watch?v={vid}"
 
+    # Fetch full metadata (description) before downloading audio
+    meta_opts = {"quiet": True, "skip_download": True}
+    with YoutubeDL(meta_opts) as ydl:
+        full_info = ydl.extract_info(video_url, download=False) or {}
+    description = full_info.get("description", video.get("description", ""))
+
+    # Download audio only
     ydl_opts = {
         "format": "bestaudio/best",
         "outtmpl": str(audio_dir / f"{vid}.%(ext)s"),
@@ -46,14 +65,14 @@ def fetch_video_audio(
         "quiet": True,
     }
     with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([f"https://www.youtube.com/watch?v={vid}"])
+        ydl.download([video_url])
 
-    ref_urls = filter_description_urls(video.get("description", ""), llm_client)
+    ref_urls = filter_description_urls(description, llm_client)
 
     meta: VideoMeta = {
         "video_id": vid,
-        "title": video["title"],
-        "description": video.get("description", ""),
+        "title": video.get("title", full_info.get("title", "")),
+        "description": description,
         "playlist_index": video["playlist_index"],
         "ref_urls": ref_urls,
         "audio_path": audio_path,
