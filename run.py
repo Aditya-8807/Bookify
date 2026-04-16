@@ -11,6 +11,9 @@ import argparse
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
+
+load_dotenv()  # loads .env from current directory
 
 from llm.client import client_from_config
 from pipeline.fetcher import fetch_all
