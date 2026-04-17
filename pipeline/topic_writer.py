@@ -5,6 +5,20 @@ from pipeline import CorrectedTranscript, TopicGroup
 from utils.checkpoint import save_checkpoint, load_checkpoint, checkpoint_exists
 
 
+OVERLAP_SYSTEM = """You are analysing topic groups for a technical book.
+Identify concepts that appear in MORE THAN ONE topic group.
+Return JSON:
+{
+  "overlaps": [
+    {
+      "concept": "concept name",
+      "primary_topic": "topic where it should be fully explained",
+      "secondary_topics": ["topics where it should only be cross-referenced"]
+    }
+  ]
+}
+Return an empty overlaps list if no overlaps found."""
+
 
 WRITE_SYSTEM = """You are writing a section of a technical book about building LLMs from scratch.
 Write clear, educational prose — not bullet points, not a transcript summary.
@@ -88,6 +102,14 @@ def write_topic(
     return result
 
 
+def detect_overlaps(groups: List[TopicGroup], llm_client) -> List[Dict]:
+    topics_summary = "\n".join(
+        f"Topic: {g['name']} — videos: {g['video_ids']}" for g in groups
+    )
+    result = llm_client.complete_json(system=OVERLAP_SYSTEM, user=topics_summary)
+    return result.get("overlaps", [])
+
+
 def write_all_topics(
     groups: List[TopicGroup],
     transcripts: List[CorrectedTranscript],
@@ -96,12 +118,18 @@ def write_all_topics(
     base_dir: Path = Path("checkpoints"),
     progress=None,
 ) -> List[Dict]:
+    overlaps = detect_overlaps(groups, llm_client)
+    overlaps_map: Dict[str, Dict] = {}
+    for ov in overlaps:
+        for sec in ov.get("secondary_topics", []):
+            overlaps_map.setdefault(sec, {})[ov["concept"]] = ov["primary_topic"]
+
     if progress:
         progress.add_stage("Stage 4: Write Topics", total=len(groups))
 
     results = []
     for group in groups:
-        results.append(write_topic(group, transcripts, {}, llm_client, base_dir))
+        results.append(write_topic(group, transcripts, overlaps_map, llm_client, base_dir))
         if progress:
             progress.advance("Stage 4: Write Topics")
 

@@ -58,10 +58,6 @@ def main():
                         help="Process only the first N videos (useful for testing the full pipeline)")
     parser.add_argument("--video-id", dest="video_id", default=None,
                         help="Process only this specific video ID")
-    parser.add_argument("--skip-verify", action="store_true",
-                        help="Skip citation verification (Stage 5b) — saves ~5 Rs per run")
-    parser.add_argument("--skip-polish", action="store_true",
-                        help="Skip prose polish (Stage 5c) — saves ~2 Rs per run")
     args = parser.parse_args()
 
     if args.from_stage == 1 and not args.playlist:
@@ -154,15 +150,11 @@ def main():
             )
             trans_by_vid = {t["video_id"]: t for t in corrected}
             groups_by_slug = {g["slug"]: g for g in groups}
-            if not args.skip_verify:
-                verified = verify_all_topics(
-                    written, groups_by_slug, trans_by_vid,
-                    base_dir=base_dir, progress=progress, llm_client=llm,
-                )
-            else:
-                verified = written
-            if not args.skip_polish:
-                verified = polish_all_topics(verified, llm, base_dir=base_dir, progress=progress)
+            verified = verify_all_topics(
+                written, groups_by_slug, trans_by_vid,
+                base_dir=base_dir, progress=progress, llm_client=llm,
+            )
+            verified = polish_all_topics(verified, llm, base_dir=base_dir, progress=progress)
         else:
             keys = list_checkpoints("04c_polished", base_dir=base_dir)
             if keys:

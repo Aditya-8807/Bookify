@@ -1,6 +1,28 @@
 import pytest
 from unittest.mock import MagicMock
-from pipeline.topic_writer import write_topic, write_all_topics
+from pipeline.topic_writer import detect_overlaps, write_topic, write_all_topics
+
+
+def test_detect_overlaps_finds_shared_concepts():
+    mock_client = MagicMock()
+    mock_client.complete_json.return_value = {
+        "overlaps": [
+            {
+                "concept": "softmax function",
+                "primary_topic": "The Attention Mechanism",
+                "secondary_topics": ["Training from Scratch"],
+            }
+        ]
+    }
+    groups = [
+        {"name": "The Attention Mechanism", "slug": "attention", "video_ids": ["v1"],
+         "dependency_order": 0, "prerequisites": [], "ref_urls": [], "ref_contents": {}},
+        {"name": "Training from Scratch", "slug": "training", "video_ids": ["v2"],
+         "dependency_order": 1, "prerequisites": [], "ref_urls": [], "ref_contents": {}},
+    ]
+    overlaps = detect_overlaps(groups, mock_client)
+    assert len(overlaps) == 1
+    assert overlaps[0]["concept"] == "softmax function"
 
 
 def test_write_topic_skips_if_checkpoint_exists(tmp_checkpoints):
