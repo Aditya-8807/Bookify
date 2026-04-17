@@ -1,4 +1,5 @@
 import base64
+import html
 import re
 import subprocess
 import tempfile
@@ -32,6 +33,7 @@ h3 { font-size: 13pt; margin-top: 1em; margin-bottom: 0.2em; }
 p { margin: 0.4em 0 0.6em; text-align: justify; }
 
 /* ── Table of Contents ───────────────────────────────────────── */
+.toc-page { page-break-after: always; margin-bottom: 0.6em; }
 .toc { margin: 0.5em 0 1.5em; }
 .toc ul { list-style: none; padding-left: 1.2em; margin: 0.1em 0; }
 .toc > ul { padding-left: 0; }
@@ -39,6 +41,16 @@ p { margin: 0.4em 0 0.6em; text-align: justify; }
 .toc a { text-decoration: none; color: #1a1a1a; }
 .toc li li { padding-left: 0.5em; border-left: 2px solid #e0e0e0; }
 .toc li li a { color: #555; font-size: 11pt; }
+.toc.compact > ul { list-style: decimal; padding-left: 1.25em; margin: 0.2em 0 0.8em; }
+.toc.compact > ul > li { margin: 0.2em 0; }
+.toc.compact > ul > li > a { color: #1f2937; text-decoration: none; font-weight: 600; }
+.toc.compact ul.toc-sub {
+    list-style: disc;
+    padding-left: 1.05em;
+    margin: 0.15em 0 0.45em;
+}
+.toc.compact ul.toc-sub li { margin: 0.12em 0; }
+.toc.compact ul.toc-sub li a { color: #4b5563; font-size: 10.5pt; font-weight: 400; }
 pre, code {
     font-family: "Courier New", monospace;
     font-size: 10pt;
@@ -151,6 +163,26 @@ figure.diagram figcaption::before {
     text-align: left;
     white-space: pre;
 }
+
+/* ── Equations (LaTeX fallback rendering) ─────────────────────── */
+.equation-block {
+    margin: 0.7em 0 0.9em;
+    padding: 0.5em 0.8em;
+    background: #fafafa;
+    border-left: 3px solid #d0d0d0;
+    font-family: "Courier New", monospace;
+    font-size: 10pt;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.eq-inline {
+    font-family: "Courier New", monospace;
+    font-size: 10pt;
+    background: #f7f7f7;
+    padding: 0.05em 0.25em;
+    border-radius: 3px;
+}
 """
 
 TITLE_PAGE_HTML = """
@@ -242,9 +274,87 @@ def _sanitize_mermaid(code: str) -> str:
     return re.sub(r"\[([^\[\]]+)\]", quote_label, code)
 
 
+_DISPLAY_MATH_RE = re.compile(r'\$\$(.+?)\$\$', re.DOTALL)
+_INLINE_MATH_RE = re.compile(r'\$([^\$\n]+?)\$')
+
+# Common LaTeX → Unicode substitutions for readable text fallback
+_LATEX_SUBS = [
+    (re.compile(r'\\text\{([^}]+)\}'), r'\1'),
+    (re.compile(r'\\mathbf\{([^}]+)\}'), r'\1'),
+    (re.compile(r'\\mathrm\{([^}]+)\}'), r'\1'),
+    (re.compile(r'\\sqrt\{([^}]+)\}'), r'√(\1)'),
+    (re.compile(r'\\frac\{([^}]+)\}\{([^}]+)\}'), r'(\1)/(\2)'),
+    (re.compile(r'\\cdot'), '·'),
+    (re.compile(r'\\times'), '×'),
+    (re.compile(r'\\leq'), '≤'),
+    (re.compile(r'\\geq'), '≥'),
+    (re.compile(r'\\neq'), '≠'),
+    (re.compile(r'\\approx'), '≈'),
+    (re.compile(r'\\rightarrow'), '→'),
+    (re.compile(r'\\leftarrow'), '←'),
+    (re.compile(r'\\infty'), '∞'),
+    (re.compile(r'\\alpha'), 'α'),
+    (re.compile(r'\\beta'), 'β'),
+    (re.compile(r'\\gamma'), 'γ'),
+    (re.compile(r'\\delta'), 'δ'),
+    (re.compile(r'\\epsilon'), 'ε'),
+    (re.compile(r'\\theta'), 'θ'),
+    (re.compile(r'\\lambda'), 'λ'),
+    (re.compile(r'\\mu'), 'μ'),
+    (re.compile(r'\\sigma'), 'σ'),
+    (re.compile(r'\\tau'), 'τ'),
+    (re.compile(r'\\phi'), 'φ'),
+    (re.compile(r'\\omega'), 'ω'),
+    (re.compile(r'\\sum'), 'Σ'),
+    (re.compile(r'\\Sigma'), 'Σ'),
+    (re.compile(r'\\prod'), 'Π'),
+    (re.compile(r'\\log'), 'log'),
+    (re.compile(r'\\exp'), 'exp'),
+    (re.compile(r'\\max'), 'max'),
+    (re.compile(r'\\min'), 'min'),
+    (re.compile(r'\\softmax'), 'softmax'),
+    (re.compile(r'\\_'), '_'),
+    (re.compile(r'\\\^'), '^'),
+    (re.compile(r'\{|\}'), ''),
+    (re.compile(r'_\{?([^}\s,]+)\}?'), r'_\1'),
+    (re.compile(r'\^\{?([^}\s,]+)\}?'), r'^\1'),
+]
+
+
+def _latex_to_text(latex: str) -> str:
+    """Convert a LaTeX math expression to a readable plain-text approximation."""
+    text = latex.strip()
+    for pattern, repl in _LATEX_SUBS:
+        text = pattern.sub(repl, text)
+    # Handle looser \frac forms that omit braces around operands.
+    text = re.sub(r'\\frac\s*([^\s{}]+)\s*([^\s{}]+)', r'(\1)/(\2)', text)
+    # Remove any remaining backslash command markers inside math.
+    text = re.sub(r'\\([A-Za-z]+)', r'\1', text)
+    return text.strip()
+
+
+def _strip_latex_math(text: str) -> str:
+    """Replace $$...$$ display math and $...$ inline math with readable text.
+    WeasyPrint has no LaTeX renderer; raw delimiters appear as literal symbols."""
+    def replace_display(m: re.Match) -> str:
+        readable = _latex_to_text(m.group(1))
+        return f'\n<div class="equation-block">{html.escape(readable)}</div>\n'
+
+    def replace_inline(m: re.Match) -> str:
+        readable = _latex_to_text(m.group(1))
+        return f'<span class="eq-inline">{html.escape(readable)}</span>'
+
+    text = _DISPLAY_MATH_RE.sub(replace_display, text)
+    text = _INLINE_MATH_RE.sub(replace_inline, text)
+    return text
+
+
 def _normalize_markdown_blocks(markdown_text: str) -> str:
     """Normalize common malformed LLM markdown so renderer can parse reliably."""
     text = markdown_text.replace("\r\n", "\n")
+
+    # Strip LaTeX math delimiters — WeasyPrint cannot render them.
+    text = _strip_latex_math(text)
 
     # Promote flowchart/graph fenced blocks to proper mermaid fences.
     text = re.sub(
@@ -264,8 +374,12 @@ def _normalize_markdown_blocks(markdown_text: str) -> str:
     # Ensure fenced blocks start on their own line so markdown parses them.
     text = re.sub(r'([^\n])(```(?:[a-zA-Z0-9_-]+)?)', r"\1\n\2", text)
 
-    # Ensure headings start on their own line (fixes leaked ### headings).
+    # Ensure subheadings start on their own line (fixes leaked ## / ### headings).
     text = re.sub(r'([^\n])(#{2,3}\s)', r"\1\n\2", text)
+
+    # Fix inline bullet points: `text * item` → `text\n* item`
+    # LLMs sometimes write list items inline without preceding newlines.
+    text = re.sub(r'(?<=[^\n]) (\* \S)', r'\n\1', text)
 
     # Avoid runaway vertical whitespace after normalization.
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -338,6 +452,49 @@ def _inject_captions_into_html(html: str) -> str:
     return html
 
 
+def _build_compact_toc_html(converter: md_lib.Markdown) -> str:
+    """Render compact TOC with chapter + key section (h2) entries."""
+    tokens = getattr(converter, "toc_tokens", None) or []
+    if not tokens:
+        return ""
+
+    def _entry(tok: dict) -> str:
+        title = html.unescape(tok.get("name", "").strip())
+        toc_id = tok.get("id", "").strip()
+        if not (title and toc_id):
+            return ""
+
+        sub_items = []
+        for child in tok.get("children", []) or []:
+            if int(child.get("level", 0) or 0) != 2:
+                continue
+            child_title = html.unescape(child.get("name", "").strip())
+            child_id = child.get("id", "").strip()
+            if child_title and child_id:
+                sub_items.append(f'<li><a href="#{child_id}">{html.escape(child_title)}</a></li>')
+            if len(sub_items) >= 1:
+                break
+
+        if sub_items:
+            return (
+                f'<li><a href="#{toc_id}">{html.escape(title)}</a>'
+                f'<ul class="toc-sub">{"".join(sub_items)}</ul></li>'
+            )
+        return f'<li><a href="#{toc_id}">{html.escape(title)}</a></li>'
+
+    items = [_entry(tok) for tok in tokens]
+    items = [item for item in items if item]
+    if not items:
+        return ""
+
+    return (
+        '<div class="toc-page"><div class="toc compact">'
+        '<h2>Table of Contents</h2>'
+        f'<ul>{"".join(items)}</ul>'
+        '</div></div>'
+    )
+
+
 def markdown_to_html(book_markdown: str, title: str = "Building LLMs from Scratch") -> str:
     book_markdown = _normalize_markdown_blocks(book_markdown)
     # 1. Extract [TABLE: title] markers before markdown eats them
@@ -355,9 +512,7 @@ def markdown_to_html(book_markdown: str, title: str = "Building LLMs from Scratc
     #    HTML so the markdown converter never touches the injected <sup>/<a> tags
     body_html = _process_citations_all_html(body_html)
 
-    toc_html = ""
-    if hasattr(converter, "toc"):
-        toc_html = f'<div><h2>Table of Contents</h2>{converter.toc}</div>'
+    toc_html = _build_compact_toc_html(converter)
 
     title_html = TITLE_PAGE_HTML.format(title=title)
 

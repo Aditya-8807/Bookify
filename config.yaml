@@ -1,7 +1,7 @@
 llm:
   # Switch provider here — that's the only change needed.
-  # gemini    → model: gemini-flash-latest key: GEMINI_API_KEY
-  #              model: gemini-2.5-flash    key: GEMINI_API_KEY
+  # gemini    → model: gemini-flash-latest  key: GEMINI_API_KEY  (floating alias, always latest flash)
+  #              model: gemini-2.5-flash    key: GEMINI_API_KEY  (pinned version)
   # openai    → model: gpt-4o              key: OPENAI_API_KEY
   # anthropic → model: claude-opus-4-7     key: ANTHROPIC_API_KEY
   provider: gemini
@@ -11,7 +11,7 @@ llm:
 pipeline:
   batch_size: 4           # parallel videos per mini-batch
   rate_limit_rpm: 6       # keep requests slower for free-tier reliability
-  min_words_per_topic: 2500  # target chapter depth; higher = longer book
+  min_words_per_topic: 8000  # target chapter depth; higher = longer book
 
 paths:
   checkpoints: checkpoints
