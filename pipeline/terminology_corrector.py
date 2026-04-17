@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import List, Dict
 
@@ -7,17 +8,17 @@ from utils.checkpoint import save_checkpoint, load_checkpoint, checkpoint_exists
 CHUNK_SIZE = 50  # segments per LLM call — keeps prompts well within token limits
 
 SYSTEM_PROMPT = """You are a technical transcript corrector for AI/ML content.
-Fix misheard or garbled domain-specific terms in these transcript segments.
+Identify misheard or garbled domain-specific terms in these transcript segments.
 The video title gives you domain context.
 Common errors: "a tension" → "attention", "cave cache" → "KV cache",
 "soft max" → "softmax", "gradient decent" → "gradient descent",
-"layer nor" → "layer norm", "back prop" → "backprop", "norm" → "norm".
-Return JSON:
+"layer nor" → "layer norm", "back prop" → "backprop".
+Return ONLY the corrections needed as JSON:
 {
-  "corrected_segments": [{"start": float, "end": float, "text": "corrected text"}],
-  "corrections": [{"original": "wrong", "corrected": "right", "timestamp": "MM:SS"}]
+  "corrections": [{"original": "wrong phrase", "corrected": "right phrase", "timestamp": "MM:SS"}]
 }
-Only fix misheard technical terms. Do not rephrase or alter meaning."""
+Return {"corrections": []} if nothing needs fixing. Max 30 corrections per chunk.
+Do NOT return the full segments — only the corrections list."""
 
 
 def _fmt_ts(seconds: float) -> str:
@@ -25,19 +26,32 @@ def _fmt_ts(seconds: float) -> str:
     return f"{m:02d}:{s:02d}"
 
 
-def _correct_chunk(title: str, segments: List[Dict], llm_client) -> tuple:
-    """Correct one chunk of segments. Returns (corrected_segments, corrections)."""
+def _apply_corrections(segments: List[Dict], corrections: List[Dict]) -> List[Dict]:
+    """Apply correction substitutions to segment text using word-boundary matching."""
+    if not corrections:
+        return segments
+    result = []
+    for seg in segments:
+        text = seg["text"]
+        for c in corrections:
+            text = re.sub(
+                r'\b' + re.escape(c["original"]) + r'\b',
+                c["corrected"],
+                text,
+                flags=re.IGNORECASE,
+            )
+        result.append({**seg, "text": text})
+    return result
+
+
+def _correct_chunk(title: str, segments: List[Dict], llm_client) -> List[Dict]:
+    """Return corrections list for one chunk of segments."""
     segments_text = "\n".join(
         f"[{_fmt_ts(s['start'])}] {s['text']}" for s in segments
     )
     user = f"Video title: {title}\n\nSegments:\n{segments_text}"
     result = llm_client.complete_json(system=SYSTEM_PROMPT, user=user)
-    corrected_segs = result.get("corrected_segments", segments)
-    corrections = result.get("corrections", [])
-    # Ensure corrected_segs has same length as input — fall back per-segment if needed
-    if len(corrected_segs) != len(segments):
-        corrected_segs = segments
-    return corrected_segs, corrections
+    return result.get("corrections", [])
 
 
 def correct_transcript(
@@ -50,21 +64,19 @@ def correct_transcript(
         return load_checkpoint("02b_corrected", vid, base_dir=base_dir)
 
     segments = transcript["segments"]
-    all_corrected: List[Dict] = []
     all_corrections: List[Dict] = []
 
-    # Process in chunks to stay within token limits for long lectures.
     for i in range(0, len(segments), CHUNK_SIZE):
         chunk = segments[i: i + CHUNK_SIZE]
-        corrected_chunk, corrections = _correct_chunk(transcript["title"], chunk, llm_client)
-        all_corrected.extend(corrected_chunk)
-        all_corrections.extend(corrections)
+        all_corrections.extend(_correct_chunk(transcript["title"], chunk, llm_client))
+
+    corrected_segments = _apply_corrections(segments, all_corrections)
 
     corrected: CorrectedTranscript = {
         "video_id": vid,
         "title": transcript["title"],
-        "segments": all_corrected,
-        "full_text": " ".join(s["text"] for s in all_corrected),
+        "segments": corrected_segments,
+        "full_text": " ".join(s["text"] for s in corrected_segments),
         "corrections": all_corrections,
     }
     save_checkpoint("02b_corrected", vid, corrected, base_dir=base_dir)
