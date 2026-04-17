@@ -98,11 +98,31 @@ TITLE_PAGE_HTML = """
 
 _MERMAID_PATTERN = re.compile(r"```mermaid\s*\n(.*?)\n```", re.DOTALL)
 
+# Characters inside node labels that need quoting in Mermaid
+_NEEDS_QUOTING = re.compile(r"\(|\)|->|<-|::")
+
+
+def _sanitize_mermaid(code: str) -> str:
+    """Auto-quote node labels that contain parentheses or arrow-like chars,
+    which Mermaid's parser treats as shape/edge syntax otherwise."""
+    def quote_label(m: re.Match) -> str:
+        inner = m.group(1)
+        # Already quoted — leave as-is
+        if inner.startswith('"') and inner.endswith('"'):
+            return m.group(0)
+        if _NEEDS_QUOTING.search(inner):
+            # Strip any stray inner quotes to avoid double-quoting
+            inner = inner.replace('"', "'")
+            return f'["{inner}"]'
+        return m.group(0)
+
+    return re.sub(r"\[([^\[\]]+)\]", quote_label, code)
+
 
 def _render_mermaid_blocks(markdown_text: str) -> str:
     """Replace ```mermaid blocks with inline SVG (or a fallback pre block)."""
     def replace(match: re.Match) -> str:
-        code = match.group(1).strip()
+        code = _sanitize_mermaid(match.group(1).strip())
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 inp = Path(tmpdir) / "diagram.mmd"

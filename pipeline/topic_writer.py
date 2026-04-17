@@ -41,6 +41,7 @@ DIAGRAMS — use a fenced ```mermaid block only when a visual adds something pro
 - A multi-step architecture or data flow that is hard to follow in words
 - An algorithm loop or decision structure where order matters visually
 Keep diagrams concise (≤ 12 nodes). Prefer `flowchart TD` for top-down flows, `graph LR` for relationships.
+Always quote node labels that contain parentheses or special characters: `D["Transformer Blocks (12 layers)"]` not `D[Transformer Blocks (12 layers)]`.
 Do not add a diagram just to have one — if the prose already explains it clearly, skip it."""
 
 
