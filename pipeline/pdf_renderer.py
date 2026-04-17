@@ -81,7 +81,7 @@ body { counter-reset: figure-counter table-counter; }
 table {
     border-collapse: collapse;
     width: 100%;
-    margin: 0.5em 0 1.5em;
+    margin: 0.4em 0 0.8em;
     font-size: 11pt;
     page-break-inside: avoid;
     counter-increment: table-counter;
@@ -116,14 +116,14 @@ tbody tr:nth-child(even) { background: #f4f6f8; }
 /* ── Figures (Mermaid diagrams) ──────────────────────────────── */
 figure.diagram {
     text-align: center;
-    margin: 1em auto;
+    margin: 0.6em auto 0.8em;
     page-break-inside: avoid;
     page-break-before: auto;
     counter-increment: figure-counter;
 }
 figure.diagram img {
     max-width: 85%;
-    max-height: 420px;
+    max-height: 380px;
     height: auto;
     width: auto;
     display: block;
@@ -133,7 +133,7 @@ figure.diagram figcaption {
     font-style: italic;
     font-size: 10pt;
     color: #444;
-    margin-top: 0.5em;
+    margin-top: 0.3em;
     text-align: center;
 }
 figure.diagram figcaption::before {
@@ -268,19 +268,19 @@ def _render_mermaid_blocks(markdown_text: str) -> str:
                 if result.returncode == 0 and out.exists():
                     b64 = base64.b64encode(out.read_bytes()).decode()
                     return (
-                        f'\n<figure class="diagram">'
+                        f'\n\n<figure class="diagram">'
                         f'<img src="data:image/png;base64,{b64}">'
                         f'<figcaption>{caption}</figcaption>'
-                        f'</figure>\n'
+                        f'</figure>\n\n'
                     )
         except Exception:
             pass
         escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         return (
-            f'\n<figure class="diagram">'
+            f'\n\n<figure class="diagram">'
             f'<pre class="mermaid-fallback">{escaped}</pre>'
             f'<figcaption>{caption}</figcaption>'
-            f'</figure>\n'
+            f'</figure>\n\n'
         )
 
     return _MERMAID_PATTERN.sub(replace, markdown_text)
