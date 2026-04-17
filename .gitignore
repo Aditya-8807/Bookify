@@ -1,4 +1,5 @@
 checkpoints/audio/
+checkpoints/audio/**
 *.pyc
 __pycache__/
 .env
@@ -8,3 +9,6 @@ dist/
 .worktrees/
 *.mp3
 *.wav
+.claude/
+claude/
+output/.DS_Store
