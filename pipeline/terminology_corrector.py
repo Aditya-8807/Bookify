@@ -36,7 +36,7 @@ def _apply_corrections(segments: List[Dict], corrections: List[Dict]) -> List[Di
         for c in corrections:
             text = re.sub(
                 r'\b' + re.escape(c["original"]) + r'\b',
-                c["corrected"],
+                lambda _m, repl=c["corrected"]: repl,
                 text,
                 flags=re.IGNORECASE,
             )

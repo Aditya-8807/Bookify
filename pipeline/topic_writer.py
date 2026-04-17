@@ -20,47 +20,33 @@ Return JSON:
 Return an empty overlaps list if no overlaps found."""
 
 
-WRITE_SYSTEM = """You are writing a chapter of a comprehensive technical book on building LLMs from scratch.
+WRITE_SYSTEM = """You are writing a section of a technical book about building LLMs from scratch.
+Write clear, educational prose — not bullet points, not a transcript summary.
+Structure: opening context → concept explanation → worked examples → section summary.
+Strip first-person instructor voice ("In this video I will...").
+Heading levels: use ## for section headings, ### for subsections. Never use # (h1) — those are reserved for chapter titles added by the book assembler.
+Use consistent terminology throughout.
+When citing something from the transcript, add: [Video: "<title>" @ MM:SS]
+When citing a reference, add: [<URL>]
+Where a concept was introduced in a prior section, add: "As introduced in <Topic>..."
+Do NOT invent facts. Only write what is supported by the provided transcript and references.
 
-CRITICAL LENGTH REQUIREMENT: Write a minimum of 4000 words. Every concept, algorithm, and
-implementation detail present in the transcripts must be covered fully and deeply.
-Do NOT summarise — this chapter must replace the need to watch the source videos.
-If you run out of obvious structure, go deeper: add worked examples, explore edge cases,
-explain the mathematical intuition, show the code step by step.
+Only add the following when they genuinely improve understanding — omit them if the prose is clearer on its own.
 
-STRUCTURE:
-- A ## opening section (descriptive subtitle, NOT the chapter name) giving context and motivation
-- A dedicated ### subsection for every major concept in the transcripts:
-    * What it is and why it matters
-    * How it works mechanically or mathematically, with concrete numbers where the transcript provides them
-    * Python / PyTorch implementation details from the transcript — reproduce actual code snippets in fenced ```python blocks
-    * Common pitfalls or design choices explained in the lectures
-- A ## Summary section (1–2 paragraphs, key takeaways only)
+TABLES — use Markdown pipe tables (| col | col |) only when the content is naturally comparative or grid-structured:
+- Multiple models/variants with numeric differences (parameter counts, sizes)
+- Hyperparameter sets that would be harder to read as prose
+- Layer-by-layer dimension breakdowns
+REQUIRED: Every table MUST be preceded by exactly this line: [TABLE: Descriptive title here]
+Never write a table without this marker — if you don't have a good title, write prose instead.
 
-HEADING RULES:
-- Use ## for major sections, ### for subsections. NEVER use # (reserved for chapter title added externally).
-- The very first line of your response must be a ## heading — a descriptive subtitle, not the chapter name.
-
-STYLE:
-- Clear, educational prose. No bullet-point summaries.
-- Strip first-person instructor voice ("In this video I will…", "Today we look at…").
-- Use consistent terminology. Cross-reference earlier chapters: "As introduced in <Topic Name>…"
-
-CITATIONS:
-- Transcript: [Video: "<exact title>" @ MM:SS]
-- Reference URL: [<URL>]
-
-TABLES — use only for genuinely comparative or grid-structured data:
-- Model variants with numeric differences, hyperparameter sets, dimension breakdowns
-- Preceding line MUST be exactly: [TABLE: Descriptive title here]
-
-DIAGRAMS — use only when a visual adds something prose cannot:
-- Architecture flows, data pipelines, algorithm loops (≤ 12 nodes)
-- Prefer `flowchart TD` for top-down, `graph LR` for relationships
-- Quote node labels containing parentheses: `D["Transformer Blocks (12 layers)"]`
-- Preceding line MUST be exactly: [FIGURE: Descriptive title here]
-
-Do NOT invent facts. Every claim must be grounded in the provided transcripts or references."""
+DIAGRAMS — use a fenced ```mermaid block only when a visual adds something prose cannot:
+- A multi-step architecture or data flow that is hard to follow in words
+- An algorithm loop or decision structure where order matters visually
+Keep diagrams concise (≤ 12 nodes). Prefer `flowchart TD` for top-down flows, `graph LR` for relationships.
+Always quote node labels that contain parentheses or special characters: `D["Transformer Blocks (12 layers)"]` not `D[Transformer Blocks (12 layers)]`.
+Always add a caption on the line immediately before the mermaid block: [FIGURE: Descriptive title here]
+Do not add a diagram just to have one — if the prose already explains it clearly, skip it."""
 
 
 def _fmt_ts(seconds: float) -> str:
