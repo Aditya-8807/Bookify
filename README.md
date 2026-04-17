@@ -247,7 +247,7 @@ rm checkpoints/04_topics/my-topic-slug.json
 
 | Provider | `provider` value | Recommended model | Key env var |
 |---|---|---|---|
-| Google Gemini | `gemini` | `gemini-2.5-flash` | `GEMINI_API_KEY` |
+| Google Gemini | `gemini` | `gemini-2.0-flash` | `GEMINI_API_KEY` |
 | OpenAI | `openai` | `gpt-4o` | `OPENAI_API_KEY` |
 | Anthropic | `anthropic` | `claude-opus-4-7` | `ANTHROPIC_API_KEY` |
 
@@ -305,7 +305,7 @@ Bookify/
 
 ## Cost estimate
 
-For a 43-video playlist using Gemini 2.5 Flash ($0.15/1M input, $0.60/1M output):
+For a 43-video playlist using Gemini 2.0 Flash ($0.10/1M input, $0.40/1M output, no thinking tokens):
 
 | Stage | Typical tokens | Estimated cost |
 |---|---|---|
