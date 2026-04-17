@@ -7,6 +7,40 @@ from pipeline import VideoMeta, Transcript, TranscriptSegment
 from utils.checkpoint import save_checkpoint, load_checkpoint, checkpoint_exists
 
 
+def _merge_segments(
+    segments: List[TranscriptSegment],
+    max_duration_s: float = 45.0,
+) -> List[TranscriptSegment]:
+    """Merge consecutive Whisper segments into ~45-second blocks.
+    Keeps start/end timestamps of the first/last segment in each block."""
+    merged = []
+    bucket: List[TranscriptSegment] = []
+
+    for seg in segments:
+        if not bucket:
+            bucket.append(seg)
+            continue
+        block_duration = seg["end"] - bucket[0]["start"]
+        if block_duration <= max_duration_s:
+            bucket.append(seg)
+        else:
+            merged.append({
+                "start": bucket[0]["start"],
+                "end": bucket[-1]["end"],
+                "text": " ".join(s["text"] for s in bucket),
+            })
+            bucket = [seg]
+
+    if bucket:
+        merged.append({
+            "start": bucket[0]["start"],
+            "end": bucket[-1]["end"],
+            "text": " ".join(s["text"] for s in bucket),
+        })
+
+    return merged
+
+
 def _transcribe_single(
     video: VideoMeta,
     model: WhisperModel,
@@ -35,10 +69,11 @@ def _transcribe_single(
         vad_parameters={"min_silence_duration_ms": 500},
     )
 
-    segments: List[TranscriptSegment] = [
+    raw_segments: List[TranscriptSegment] = [
         {"start": seg.start, "end": seg.end, "text": seg.text.strip()}
         for seg in segments_raw
     ]
+    segments = _merge_segments(raw_segments, max_duration_s=45)
     full_text = " ".join(s["text"] for s in segments)
 
     transcript: Transcript = {

@@ -16,17 +16,29 @@ CSS_STYLES = """
         color: #666;
     }
 }
+@page :first {
+    @bottom-center { content: none; }
+}
 body {
     font-family: Georgia, serif;
     font-size: 12pt;
-    line-height: 1.8;
+    line-height: 1.4;
     color: #1a1a1a;
     max-width: 100%;
 }
-h1 { font-size: 28pt; margin-top: 2em; page-break-before: always; }
-h2 { font-size: 20pt; margin-top: 1.5em; border-bottom: 1px solid #ccc; padding-bottom: 0.3em; }
-h3 { font-size: 14pt; margin-top: 1.2em; }
-p { margin: 0.8em 0; text-align: justify; }
+h1 { font-size: 26pt; margin-top: 0; margin-bottom: 0.4em; page-break-before: always; }
+h2 { font-size: 16pt; margin-top: 1.4em; margin-bottom: 0.3em; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
+h3 { font-size: 13pt; margin-top: 1em; margin-bottom: 0.2em; }
+p { margin: 0.4em 0 0.6em; text-align: justify; }
+
+/* ── Table of Contents ───────────────────────────────────────── */
+.toc { margin: 0.5em 0 1.5em; }
+.toc ul { list-style: none; padding-left: 1.2em; margin: 0.1em 0; }
+.toc > ul { padding-left: 0; }
+.toc li { margin: 0.25em 0; line-height: 1.4; }
+.toc a { text-decoration: none; color: #1a1a1a; }
+.toc li li { padding-left: 0.5em; border-left: 2px solid #e0e0e0; }
+.toc li li a { color: #555; font-size: 11pt; }
 pre, code {
     font-family: "Courier New", monospace;
     font-size: 10pt;
@@ -39,17 +51,53 @@ pre {
     overflow-x: auto;
     border-left: 3px solid #ccc;
 }
-hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+hr { border: none; border-top: 1px solid #ddd; margin: 1.5em 0; }
 a { color: #1a1a1a; }
 strong { font-weight: bold; }
+ul, ol { margin: 0.4em 0 0.8em; padding-left: 1.8em; }
+li { margin: 0.2em 0; }
+ol li { page-break-inside: avoid; }
+
+/* ── Citations ───────────────────────────────────────────────── */
+sup.cite-ref { font-size: 8pt; line-height: 0; vertical-align: super; }
+sup.cite-ref a { color: #2563eb; text-decoration: underline; }
+.references a { color: #2563eb; text-decoration: underline; }
+.references {
+    margin-top: 2em;
+    padding-top: 1em;
+    border-top: 1px solid #ddd;
+    font-size: 10pt;
+    color: #444;
+    page-break-inside: avoid;
+}
+.references h4 { font-size: 11pt; margin-bottom: 0.5em; color: #1a1a1a; }
+.references ol { padding-left: 1.5em; margin: 0; }
+.references li { margin: 0.3em 0; line-height: 1.4; }
+
+/* ── Counters ────────────────────────────────────────────────── */
+body { counter-reset: figure-counter table-counter; }
 
 /* ── Tables ──────────────────────────────────────────────────── */
 table {
     border-collapse: collapse;
     width: 100%;
-    margin: 1.5em 0;
+    margin: 0.5em 0 1.5em;
     font-size: 11pt;
     page-break-inside: avoid;
+    counter-increment: table-counter;
+}
+caption {
+    caption-side: top;
+    text-align: center;
+    font-style: italic;
+    font-size: 10pt;
+    color: #444;
+    padding: 0 0 0.5em;
+}
+caption::before {
+    content: "Table " counter(table-counter) ": ";
+    font-weight: bold;
+    font-style: normal;
 }
 thead th {
     background: #2c3e50;
@@ -64,19 +112,34 @@ tbody td {
     vertical-align: top;
 }
 tbody tr:nth-child(even) { background: #f4f6f8; }
-tbody tr:hover { background: #eef1f4; }
 
-/* ── Mermaid diagrams ────────────────────────────────────────── */
-.mermaid-diagram {
+/* ── Figures (Mermaid diagrams) ──────────────────────────────── */
+figure.diagram {
     text-align: center;
-    margin: 2em auto;
+    margin: 1em auto;
     page-break-inside: avoid;
+    page-break-before: auto;
+    counter-increment: figure-counter;
 }
-.mermaid-diagram svg {
-    max-width: 100%;
+figure.diagram img {
+    max-width: 85%;
+    max-height: 420px;
     height: auto;
+    width: auto;
     display: block;
     margin: 0 auto;
+}
+figure.diagram figcaption {
+    font-style: italic;
+    font-size: 10pt;
+    color: #444;
+    margin-top: 0.5em;
+    text-align: center;
+}
+figure.diagram figcaption::before {
+    content: "Figure " counter(figure-counter) ": ";
+    font-weight: bold;
+    font-style: normal;
 }
 .mermaid-fallback {
     background: #f8f8f8;
@@ -97,7 +160,73 @@ TITLE_PAGE_HTML = """
 </div>
 """
 
-_MERMAID_PATTERN = re.compile(r"```mermaid\s*\n(.*?)\n```", re.DOTALL)
+_MERMAID_PATTERN = re.compile(
+    r"(?:\[FIGURE:\s*([^\]\n]+)\]\s*\n)?```mermaid\s*\n(.*?)\n```",
+    re.DOTALL,
+)
+_TABLE_CAPTION_RE = re.compile(r"\[TABLE:\s*([^\]\n]+)\]\s*\n(\|)", re.MULTILINE)
+
+# Citation regexes — applied to already-converted HTML so markdown never mangles
+# the injected <sup>/<a> tags.
+_VIDEO_CITE_RE = re.compile(r'\[Video:\s*"([^"]+)"\s*@\s*(\d+:\d+)\]')
+# Matches [<a href="url">...</a>] — produced when markdown autolinks [<https://url>]
+_URL_CITE_HTML_RE = re.compile(r'\[<a\s[^>]*href="(https?://[^"]+)"[^>]*>[^<]*</a>\]')
+# Matches plain [https://url] as a fallback (no angle brackets)
+_URL_CITE_PLAIN_RE = re.compile(r'\[(https?://[^\]\s<"]+)\](?!\()')
+
+
+def _process_citations_in_html(html: str, id_prefix: str = "c") -> tuple:
+    """Replace citation markers with superscript footnote numbers.
+    Returns (processed_html, footnotes_html) — footnotes are NOT appended
+    inline so the caller can place them at the end of the full document."""
+    citations: dict = {}
+    counter = [0]
+
+    def _cite(key: str, display: str) -> str:
+        if key not in citations:
+            counter[0] += 1
+            citations[key] = (counter[0], display)
+        n = citations[key][0]
+        return f'<sup class="cite-ref"><a href="#{id_prefix}-{n}">[{n}]</a></sup>'
+
+    def replace_video(m: re.Match) -> str:
+        return _cite(m.group(0), f'Video: <em>{m.group(1)}</em> @ {m.group(2)}')
+
+    def replace_url(m: re.Match) -> str:
+        url = m.group(1)
+        return _cite(m.group(0), f'<a href="{url}">{url}</a>')
+
+    out = _VIDEO_CITE_RE.sub(replace_video, html)
+    out = _URL_CITE_HTML_RE.sub(replace_url, out)
+    out = _URL_CITE_PLAIN_RE.sub(replace_url, out)
+
+    footnotes_html = ""
+    if citations:
+        items = "".join(
+            f'<li id="{id_prefix}-{n}">{text}</li>\n'
+            for _, (n, text) in citations.items()
+        )
+        footnotes_html = (
+            f'<div class="references"><h4>Footnotes</h4>'
+            f'<ol>\n{items}</ol></div>\n'
+        )
+    return out, footnotes_html
+
+
+def _process_citations_all_html(html: str) -> str:
+    """Split rendered HTML at <h1> chapter boundaries, number citations
+    per-chapter, then append all footnote blocks at the very end of the
+    document so they always appear after References & Resources."""
+    parts = re.split(r'(?=<h1[\s>])', html, flags=re.IGNORECASE)
+    processed = []
+    all_footnotes = []
+    for i, part in enumerate(parts):
+        if part.strip():
+            body, footnotes = _process_citations_in_html(part, id_prefix=f"ch{i}")
+            processed.append(body)
+            if footnotes:
+                all_footnotes.append(footnotes)
+    return "\n".join(processed) + ("\n" + "\n".join(all_footnotes) if all_footnotes else "")
 
 # Characters inside node labels that need quoting in Mermaid
 _NEEDS_QUOTING = re.compile(r"\(|\)|->|<-|::")
@@ -121,10 +250,11 @@ def _sanitize_mermaid(code: str) -> str:
 
 
 def _render_mermaid_blocks(markdown_text: str) -> str:
-    """Replace ```mermaid blocks with a PNG <img> (or fallback pre block).
-    PNG avoids all SVG viewBox/scaling issues with WeasyPrint."""
+    """Replace ```mermaid blocks (with optional [FIGURE: title]) with a
+    numbered <figure> containing a PNG image. PNG avoids WeasyPrint SVG issues."""
     def replace(match: re.Match) -> str:
-        code = _sanitize_mermaid(match.group(1).strip())
+        caption = (match.group(1) or "").strip()
+        code = _sanitize_mermaid(match.group(2).strip())
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 inp = Path(tmpdir) / "diagram.mmd"
@@ -132,33 +262,73 @@ def _render_mermaid_blocks(markdown_text: str) -> str:
                 inp.write_text(code, encoding="utf-8")
                 result = subprocess.run(
                     ["mmdc", "-i", str(inp), "-o", str(out),
-                     "-b", "white", "--quiet", "-w", "900"],
+                     "-b", "white", "--quiet", "-w", "650"],
                     capture_output=True, text=True, timeout=30,
                 )
                 if result.returncode == 0 and out.exists():
                     b64 = base64.b64encode(out.read_bytes()).decode()
                     return (
-                        f'\n<div class="mermaid-diagram">'
-                        f'<img src="data:image/png;base64,{b64}" '
-                        f'style="max-width:100%;height:auto;display:block;margin:0 auto;">'
-                        f'</div>\n'
+                        f'\n<figure class="diagram">'
+                        f'<img src="data:image/png;base64,{b64}">'
+                        f'<figcaption>{caption}</figcaption>'
+                        f'</figure>\n'
                     )
         except Exception:
             pass
-        # Fallback: styled code block
         escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        return f'\n<div class="mermaid-diagram"><pre class="mermaid-fallback">{escaped}</pre></div>\n'
+        return (
+            f'\n<figure class="diagram">'
+            f'<pre class="mermaid-fallback">{escaped}</pre>'
+            f'<figcaption>{caption}</figcaption>'
+            f'</figure>\n'
+        )
 
     return _MERMAID_PATTERN.sub(replace, markdown_text)
 
 
+def _inject_table_captions(markdown_text: str) -> str:
+    """Convert [TABLE: title] markers to HTML comments that survive markdown
+    conversion, then inject <caption> into each rendered <table>."""
+    # Mark table captions as HTML comments before markdown processing
+    return _TABLE_CAPTION_RE.sub(
+        lambda m: f'<!--TABLECAP:{m.group(1).strip()}-->\n{m.group(2)}',
+        markdown_text,
+    )
+
+
+def _inject_captions_into_html(html: str) -> str:
+    """Post-process HTML: inject <caption> into every <table>.
+    Tables preceded by <!--TABLECAP:title--> get that title; others get empty caption for CSS counter."""
+    # With a preceding caption comment
+    html = re.sub(
+        r'<!--TABLECAP:([^>]*)-->\s*(<table[^>]*>)',
+        lambda m: f'{m.group(2)}<caption>{m.group(1)}</caption>',
+        html,
+    )
+    # Tables without any caption marker — add empty caption for CSS counter
+    html = re.sub(
+        r'(<table[^>]*>)(?!\s*<caption)',
+        r'\1<caption></caption>',
+        html,
+    )
+    return html
+
+
 def markdown_to_html(book_markdown: str, title: str = "Building LLMs from Scratch") -> str:
-    # Convert Mermaid blocks to inline SVG before markdown processing
-    processed = _render_mermaid_blocks(book_markdown)
+    # 1. Extract [TABLE: title] markers before markdown eats them
+    processed = _inject_table_captions(book_markdown)
+    # 2. Render mermaid blocks (with optional [FIGURE: title]) to PNG figures
+    processed = _render_mermaid_blocks(processed)
 
     extensions = ["fenced_code", "tables", "toc"]
     converter = md_lib.Markdown(extensions=extensions)
     body_html = converter.convert(processed)
+
+    # 3. Inject <caption> into every <table>
+    body_html = _inject_captions_into_html(body_html)
+    # 4. Replace citation markers with superscript footnotes — must run on final
+    #    HTML so the markdown converter never touches the injected <sup>/<a> tags
+    body_html = _process_citations_all_html(body_html)
 
     toc_html = ""
     if hasattr(converter, "toc"):

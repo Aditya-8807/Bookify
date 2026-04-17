@@ -50,24 +50,24 @@ def assemble_book(
     glossary_terms = generate_glossary(all_prose, llm_client)
 
     group_by_slug = {g["slug"]: g for g in groups}
-    references_section = "## References & Resources\n\n"
+    references_section = "# References & Resources\n\n"
     for topic in verified_topics:
         group = group_by_slug.get(topic["slug"], {})
         urls = group.get("ref_urls", [])
         if urls:
-            references_section += f"### {topic['name']}\n"
+            references_section += f"## {topic['name']}\n"
             for url in urls:
-                references_section += f"- {url}\n"
+                references_section += f"- [{url}]({url})\n"
             references_section += "\n"
 
-    glossary_section = "## Glossary\n\n"
+    glossary_section = "# Glossary\n\n"
     for entry in glossary_terms:
         glossary_section += f"**{entry['term']}** — {entry['definition']}\n\n"
 
-    parts = ["## Introduction\n\n" + intro]
+    parts = ["# Introduction\n\n" + intro]
     for topic in verified_topics:
-        parts.append(f"## {topic['name']}\n\n{topic['prose']}")
-    parts.append("## Conclusion\n\n" + conclusion)
+        parts.append(f"# {topic['name']}\n\n{topic['prose']}")
+    parts.append("# Conclusion\n\n" + conclusion)
     parts.append(glossary_section)
     parts.append(references_section)
 

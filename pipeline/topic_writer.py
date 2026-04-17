@@ -24,6 +24,7 @@ WRITE_SYSTEM = """You are writing a section of a technical book about building L
 Write clear, educational prose — not bullet points, not a transcript summary.
 Structure: opening context → concept explanation → worked examples → section summary.
 Strip first-person instructor voice ("In this video I will...").
+Heading levels: use ## for section headings, ### for subsections. Never use # (h1) — those are reserved for chapter titles added by the book assembler.
 Use consistent terminology throughout.
 When citing something from the transcript, add: [Video: "<title>" @ MM:SS]
 When citing a reference, add: [<URL>]
@@ -36,12 +37,15 @@ TABLES — use Markdown pipe tables (| col | col |) only when the content is nat
 - Multiple models/variants with numeric differences (parameter counts, sizes)
 - Hyperparameter sets that would be harder to read as prose
 - Layer-by-layer dimension breakdowns
+REQUIRED: Every table MUST be preceded by exactly this line: [TABLE: Descriptive title here]
+Never write a table without this marker — if you don't have a good title, write prose instead.
 
 DIAGRAMS — use a fenced ```mermaid block only when a visual adds something prose cannot:
 - A multi-step architecture or data flow that is hard to follow in words
 - An algorithm loop or decision structure where order matters visually
 Keep diagrams concise (≤ 12 nodes). Prefer `flowchart TD` for top-down flows, `graph LR` for relationships.
 Always quote node labels that contain parentheses or special characters: `D["Transformer Blocks (12 layers)"]` not `D[Transformer Blocks (12 layers)]`.
+Always add a caption on the line immediately before the mermaid block: [FIGURE: Descriptive title here]
 Do not add a diagram just to have one — if the prose already explains it clearly, skip it."""
 
 
