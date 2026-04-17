@@ -100,3 +100,37 @@ Audio cache is local-only and ignored from git:
 - `.claude/` is ignored and should not be committed.
 - `checkpoints/audio/` is removed/ignored.
 - Checkpoints and generated book artifacts are versioned as required for reproducible runs.
+
+## Project structure
+
+```text
+Bookify/
+├── run.py
+├── config.yaml
+├── requirements.txt
+├── README.md
+├── pipeline/
+│   ├── fetcher.py
+│   ├── transcriber.py
+│   ├── terminology_corrector.py
+│   ├── grouper.py
+│   ├── topic_writer.py
+│   ├── citation_verifier.py
+│   ├── prose_polisher.py
+│   ├── assembler.py
+│   └── pdf_renderer.py
+├── llm/
+│   └── client.py
+├── utils/
+│   ├── checkpoint.py
+│   ├── progress.py
+│   ├── quality_report.py
+│   └── url_filter.py
+├── checkpoints/
+└── output/
+```
+
+## Author
+
+**Aditya Chaurasiya**  
+Indian Institute Of Technology Bombay
