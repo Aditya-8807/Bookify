@@ -1,5 +1,4 @@
-checkpoints/
-output/
+checkpoints/audio/
 *.pyc
 __pycache__/
 .env

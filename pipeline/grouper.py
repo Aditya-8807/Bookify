@@ -11,14 +11,12 @@ from utils.checkpoint import save_checkpoint, load_checkpoint, checkpoint_exists
 
 GROUP_SYSTEM = """You are organizing transcripts from a YouTube playlist into a book.
 Cluster the videos into thematic topic groups. Each group becomes one section of the book.
-Build a dependency graph: if topic B requires understanding topic A first, list A as a prerequisite of B.
 Return JSON:
 {
   "topics": [
     {
       "name": "Human-readable topic name",
-      "video_ids": ["vid1", "vid2"],
-      "prerequisites": ["Topic Name A"]
+      "video_ids": ["vid1", "vid2"]
     }
   ]
 }
@@ -31,26 +29,6 @@ def slugify(name: str) -> str:
     s = re.sub(r"[^a-z0-9\s-]", "", s)
     s = re.sub(r"[\s]+", "-", s.strip())
     return s
-
-
-def _topological_sort(topics: List[Dict]) -> List[Dict]:
-    name_to_topic = {t["name"]: t for t in topics}
-    order = []
-    visited = set()
-
-    def visit(name):
-        if name in visited:
-            return
-        visited.add(name)
-        for prereq in name_to_topic.get(name, {}).get("prerequisites", []):
-            if prereq in name_to_topic:
-                visit(prereq)
-        order.append(name)
-
-    for t in topics:
-        visit(t["name"])
-
-    return [name_to_topic[n] for n in order if n in name_to_topic]
 
 
 def fetch_reference_content(urls: List[str]) -> Dict[str, str]:
@@ -67,6 +45,29 @@ def fetch_reference_content(urls: List[str]) -> Dict[str, str]:
     return content
 
 
+def fetch_and_checkpoint_ref_content(
+    video_metas: List[VideoMeta],
+    base_dir: Path = Path("checkpoints"),
+    progress=None,
+) -> None:
+    """
+    Fetch reference URL content for every video and save to
+    checkpoints/01b_ref_content/<video_id>.json BEFORE any LLM stage runs.
+    This gives a permanent, auditable record of what raw source material
+    was available to the LLM — independent of any LLM output.
+    """
+    if progress:
+        progress.add_stage("Stage 1b: Ref Content", total=len(video_metas))
+
+    for meta in video_metas:
+        vid = meta["video_id"]
+        if not checkpoint_exists("01b_ref_content", vid, base_dir=base_dir):
+            content = fetch_reference_content(meta.get("ref_urls", []))
+            save_checkpoint("01b_ref_content", vid, content, base_dir=base_dir)
+        if progress:
+            progress.advance("Stage 1b: Ref Content")
+
+
 def group_and_order(
     transcripts: List[CorrectedTranscript],
     video_metas: List[VideoMeta],
@@ -81,25 +82,48 @@ def group_and_order(
         progress.add_stage("Stage 3: Group + Order", total=1)
 
     meta_by_id = {m["video_id"]: m for m in video_metas}
+    # Pass playlist_index alongside each video so the LLM knows the original order.
     summaries = "\n\n".join(
-        f"video_id={t['video_id']} title={t['title']}\n{t['full_text'][:500]}"
+        f"video_id={t['video_id']} playlist_index={meta_by_id.get(t['video_id'], {}).get('playlist_index', 0)} title={t['title']}\n{t['full_text'][:500]}"
         for t in transcripts
     )
     result = llm_client.complete_json(system=GROUP_SYSTEM, user=summaries)
     raw_topics = result.get("topics", [])
-    ordered = _topological_sort(raw_topics)
+
+    # Sort topic groups by the earliest playlist_index among their videos.
+    # The instructor's lecture order is the intentional pedagogical flow —
+    # trusting it is safer than having the LLM invent its own dependency graph.
+    def _min_playlist_index(topic: Dict) -> int:
+        indices = [
+            meta_by_id.get(vid, {}).get("playlist_index", 0)
+            for vid in topic.get("video_ids", [])
+        ]
+        return min(indices) if indices else 0
+
+    ordered = sorted(raw_topics, key=_min_playlist_index)
 
     groups: List[TopicGroup] = []
     for i, topic in enumerate(ordered):
-        vids = topic["video_ids"]
+        # Sort videos within the group by playlist_index so transcript chunks
+        # are fed to the writer in the same order the instructor taught them.
+        vids = sorted(
+            topic["video_ids"],
+            key=lambda v: meta_by_id.get(v, {}).get("playlist_index", 0),
+        )
         all_ref_urls = list({url for vid in vids for url in meta_by_id.get(vid, {}).get("ref_urls", [])})
-        ref_contents = fetch_reference_content(all_ref_urls)
+
+        # Load ref content from pre-LLM checkpoint instead of fetching here.
+        ref_contents: Dict[str, str] = {}
+        for vid in vids:
+            if checkpoint_exists("01b_ref_content", vid, base_dir=base_dir):
+                ref_contents.update(load_checkpoint("01b_ref_content", vid, base_dir=base_dir))
+
         groups.append({
             "name": topic["name"],
             "slug": slugify(topic["name"]),
             "video_ids": vids,
             "dependency_order": i,
-            "prerequisites": topic.get("prerequisites", []),
+            "prerequisites": [],
             "ref_urls": all_ref_urls,
             "ref_contents": ref_contents,
         })

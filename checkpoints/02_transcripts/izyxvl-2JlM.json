@@ -1,0 +1,4087 @@
+{
+  "video_id": "izyxvl-2JlM",
+  "title": "Coding the model architecture for LLM classification fine-tuning",
+  "segments": [
+    {
+      "start": 1.68,
+      "end": 11.14,
+      "text": "Hello everyone and welcome to this lecture in the build large language models from scratch"
+    },
+    {
+      "start": 11.14,
+      "end": 12.14,
+      "text": "series."
+    },
+    {
+      "start": 12.14,
+      "end": 18.14,
+      "text": "Today we are going to continue with the classification fine-tuning example which we have been seeing"
+    },
+    {
+      "start": 18.14,
+      "end": 20.73,
+      "text": "for the past two lectures."
+    },
+    {
+      "start": 20.73,
+      "end": 26.05,
+      "text": "The main goal of today's lecture is to perform model initialization with pre-trained weights"
+    },
+    {
+      "start": 26.05,
+      "end": 31.61,
+      "text": "and then we will also do some changes in the GPT or the LLM architecture so that"
+    },
+    {
+      "start": 31.61,
+      "end": 34.61,
+      "text": "it can perform classification tasks."
+    },
+    {
+      "start": 34.61,
+      "end": 40.05,
+      "text": "Let me give you a quick recap of what all we have been doing in this hands-on LLM classification"
+    },
+    {
+      "start": 40.05,
+      "end": 41.05,
+      "text": "project."
+    },
+    {
+      "start": 41.05,
+      "end": 48.06,
+      "text": "Basically, we started out with this problem where we have been given certain text as"
+    },
+    {
+      "start": 48.06,
+      "end": 53.66,
+      "text": "data and we want to use a large language model to classify whether it's a spam or whether"
+    },
+    {
+      "start": 53.66,
+      "end": 59.89,
+      "text": "it's not a spam and this comes under the category of fine-tuning."
+    },
+    {
+      "start": 59.89,
+      "end": 66.59,
+      "text": "We already have built a pre-trained LLM model in this lecture series, however we have not"
+    },
+    {
+      "start": 66.59,
+      "end": 69.27,
+      "text": "fine-tuned it further."
+    },
+    {
+      "start": 69.27,
+      "end": 74.27,
+      "text": "Fine-tuning is extremely essential for adapting a pre-trained model to a specific task so"
+    },
+    {
+      "start": 74.27,
+      "end": 78.47,
+      "text": "there are two types instruction fine-tuning and classification fine-tuning."
+    },
+    {
+      "start": 78.47,
+      "end": 83.47,
+      "text": "We have started with instruction fine-tuning and are looking at this hands-on email classification"
+    },
+    {
+      "start": 83.47,
+      "end": 84.47,
+      "text": "example."
+    },
+    {
+      "start": 86.06,
+      "end": 91.3,
+      "text": "So here are the steps which we are going to follow when we make this classification."
+    },
+    {
+      "start": 91.3,
+      "end": 95.42,
+      "text": "Up till now we have covered these three steps which have been marked in blue."
+    },
+    {
+      "start": 95.42,
+      "end": 100.62,
+      "text": "So we downloaded the data set, we pre-processed the data set and we created data loaders."
+    },
+    {
+      "start": 100.62,
+      "end": 106.67,
+      "text": "Let me quickly show you these three steps and what all we have implemented so far."
+    },
+    {
+      "start": 106.67,
+      "end": 111.43,
+      "text": "So this is the data set which you can see in the UC Irvine machine learning repository."
+    },
+    {
+      "start": 111.43,
+      "end": 115.79,
+      "text": "It's called SMS spam collection and when you download this data set you will see"
+    },
+    {
+      "start": 115.87,
+      "end": 118.07,
+      "text": "that it looks something like this."
+    },
+    {
+      "start": 118.07,
+      "end": 125.86,
+      "text": "So you have labels as ham which is not a spam and spam and the data set when you download"
+    },
+    {
+      "start": 125.86,
+      "end": 131.36,
+      "text": "it you will see that the no spam there are 4, 8, 2, 5 and spam there are only 7, 47."
+    },
+    {
+      "start": 131.36,
+      "end": 136.14,
+      "text": "So the first step we did was to balance this data set so that both the spam as well"
+    },
+    {
+      "start": 136.14,
+      "end": 139.62,
+      "text": "as no spam have 7, 47 data counts."
+    },
+    {
+      "start": 139.62,
+      "end": 144.1,
+      "text": "So that's data pre-processing then what we did is we created data loaders so"
+    },
+    {
+      "start": 144.18,
+      "end": 149.26,
+      "text": "that we can feed in the input and get feed in the input in batches."
+    },
+    {
+      "start": 149.26,
+      "end": 154.34,
+      "text": "So the main aim of data loaders was also to convert the data set into a set of input and"
+    },
+    {
+      "start": 154.34,
+      "end": 155.78,
+      "text": "target pairs."
+    },
+    {
+      "start": 155.78,
+      "end": 160.1,
+      "text": "So let me show you how these input and target pairs actually look like."
+    },
+    {
+      "start": 160.1,
+      "end": 164.18,
+      "text": "In the last lecture we converted the data set into these two tensors."
+    },
+    {
+      "start": 164.18,
+      "end": 170.14,
+      "text": "So this first tensor here is the inputs tensor and this second tensor here is the"
+    },
+    {
+      "start": 170.14,
+      "end": 171.62,
+      "text": "target tensor."
+    },
+    {
+      "start": 171.62,
+      "end": 175.54,
+      "text": "You'll see that your every batch has eight input samples."
+    },
+    {
+      "start": 175.54,
+      "end": 179.7,
+      "text": "So this I'm showing one batch over here and it has eight text samples."
+    },
+    {
+      "start": 179.7,
+      "end": 184.62,
+      "text": "So each row here corresponds to one such sample and every column here corresponds"
+    },
+    {
+      "start": 184.62,
+      "end": 186.1,
+      "text": "to the number of tokens."
+    },
+    {
+      "start": 186.1,
+      "end": 190.9,
+      "text": "So we have broken down these sentences into tokens and use the byte pair"
+    },
+    {
+      "start": 190.9,
+      "end": 193.54,
+      "text": "encoder to convert these into token IDs."
+    },
+    {
+      "start": 193.54,
+      "end": 197.26,
+      "text": "We have made sure that all of these sentences are converted into equal"
+    },
+    {
+      "start": 197.26,
+      "end": 202.02,
+      "text": "number of token IDs and wherever the sentences are short, we have padded them"
+    },
+    {
+      "start": 202.02,
+      "end": 207.98,
+      "text": "with the token 50256 token ID, which corresponds to the end of text."
+    },
+    {
+      "start": 207.98,
+      "end": 210.62,
+      "text": "So here you can see this is the input tensor."
+    },
+    {
+      "start": 210.62,
+      "end": 214.69,
+      "text": "It has eight rows and it has 120 tokens."
+    },
+    {
+      "start": 214.69,
+      "end": 219.53,
+      "text": "We get this number 120 based on the longest text message in the data set."
+    },
+    {
+      "start": 219.53,
+      "end": 222.85,
+      "text": "And then if you look at the output tensor, it's just zeros or ones."
+    },
+    {
+      "start": 222.85,
+      "end": 228.25,
+      "text": "So zero means zero stands for no spam and one stands for spam."
+    },
+    {
+      "start": 228.25,
+      "end": 234.13,
+      "text": "So whenever you have, you have the data set right now and when we want to train"
+    },
+    {
+      "start": 234.13,
+      "end": 239.85,
+      "text": "on the data set, the optimizer, which we'll define later will process each batch."
+    },
+    {
+      "start": 239.85,
+      "end": 244.23,
+      "text": "So in each batch, you will process this eight text samples and"
+    },
+    {
+      "start": 244.23,
+      "end": 246.71,
+      "text": "it also has these outputs to work with."
+    },
+    {
+      "start": 246.71,
+      "end": 251.93,
+      "text": "So using data loaders has made our job very easy in terms of data management."
+    },
+    {
+      "start": 251.93,
+      "end": 254.85,
+      "text": "So you see, we have covered these three steps so far."
+    },
+    {
+      "start": 254.85,
+      "end": 259.21,
+      "text": "Downloading the data set, pre-processing the data set by making sure that the"
+    },
+    {
+      "start": 259.21,
+      "end": 261.41,
+      "text": "no spam and spam categories are balanced."
+    },
+    {
+      "start": 261.41,
+      "end": 265.36,
+      "text": "And then finally, we also created the training data loader,"
+    },
+    {
+      "start": 265.36,
+      "end": 268.52,
+      "text": "the testing data loader and validation data loader."
+    },
+    {
+      "start": 268.52,
+      "end": 273.68,
+      "text": "We have used 70% of the data for training, 10% of the data for validation,"
+    },
+    {
+      "start": 273.68,
+      "end": 276.24,
+      "text": "and 20% of the data for testing."
+    },
+    {
+      "start": 276.24,
+      "end": 278.76,
+      "text": "And you'll also see that in the code over here."
+    },
+    {
+      "start": 278.76,
+      "end": 284.24,
+      "text": "So you can see here 0.7 is the training data, 0.1 is the validation data,"
+    },
+    {
+      "start": 284.24,
+      "end": 287.81,
+      "text": "and 0.2 is the fraction of the testing data."
+    },
+    {
+      "start": 287.81,
+      "end": 290.73,
+      "text": "Right, and we have this spam data set class,"
+    },
+    {
+      "start": 290.73,
+      "end": 294.29,
+      "text": "which is then fed as an input to our data loaders."
+    },
+    {
+      "start": 294.29,
+      "end": 297.37,
+      "text": "So this is the training data loader, validation data loader and"
+    },
+    {
+      "start": 297.37,
+      "end": 298.89,
+      "text": "the testing data loader."
+    },
+    {
+      "start": 298.89,
+      "end": 302.45,
+      "text": "The output of these data loaders are in the batched format,"
+    },
+    {
+      "start": 302.45,
+      "end": 306.05,
+      "text": "which I showed you in this visual representation."
+    },
+    {
+      "start": 306.05,
+      "end": 310.61,
+      "text": "If you want a more detailed description of how we did the data downloading and"
+    },
+    {
+      "start": 310.61,
+      "end": 312.93,
+      "text": "how we performed the data pre-processing,"
+    },
+    {
+      "start": 312.93,
+      "end": 316.49,
+      "text": "I would highly encourage you to go through the previous two lectures."
+    },
+    {
+      "start": 316.49,
+      "end": 320.93,
+      "text": "Now we have come to stage two, where our goal will be to first initialize"
+    },
+    {
+      "start": 320.93,
+      "end": 323.61,
+      "text": "the large language model which we are going to use."
+    },
+    {
+      "start": 323.61,
+      "end": 327.37,
+      "text": "Then we are going to load pre-trained weights from GPT2."
+    },
+    {
+      "start": 327.37,
+      "end": 330.85,
+      "text": "And then we will modify the model architecture a bit for fine tuning."
+    },
+    {
+      "start": 332.17,
+      "end": 335.45,
+      "text": "And then finally, we will implement evaluation utilities."
+    },
+    {
+      "start": 335.45,
+      "end": 339.73,
+      "text": "In today's lecture, we will do step number four, step number five and step number six."
+    },
+    {
+      "start": 341.3,
+      "end": 346.19,
+      "text": "So it will be a comprehensive lecture, and let's get started."
+    },
+    {
+      "start": 346.19,
+      "end": 349.07,
+      "text": "Now we have these data loaders training, testing and validation."
+    },
+    {
+      "start": 349.07,
+      "end": 351.63,
+      "text": "So now we come to the GPT architecture."
+    },
+    {
+      "start": 351.63,
+      "end": 353.79,
+      "text": "So here you see, in this lecture series so far,"
+    },
+    {
+      "start": 353.79,
+      "end": 356.71,
+      "text": "we have constructed this architecture which is,"
+    },
+    {
+      "start": 356.71,
+      "end": 359.59,
+      "text": "which I've zoomed in on the screen right now."
+    },
+    {
+      "start": 359.59,
+      "end": 361.63,
+      "text": "Don't focus on these two images on the right,"
+    },
+    {
+      "start": 361.63,
+      "end": 363.59,
+      "text": "just look at this gray colored architecture."
+    },
+    {
+      "start": 363.59,
+      "end": 366.11,
+      "text": "This is the LLM architecture, which we have focused up till now."
+    },
+    {
+      "start": 367.07,
+      "end": 370.07,
+      "text": "What we are going to do first is that we are going to first load"
+    },
+    {
+      "start": 370.07,
+      "end": 374.1,
+      "text": "the pre-trained GPT2 weights into this architecture."
+    },
+    {
+      "start": 374.1,
+      "end": 376.38,
+      "text": "And if you have not seen the previous lectures,"
+    },
+    {
+      "start": 376.38,
+      "end": 378.42,
+      "text": "let me just give you that recap."
+    },
+    {
+      "start": 378.42,
+      "end": 382.5,
+      "text": "OpenAI has basically made the GPT2 weights free,"
+    },
+    {
+      "start": 382.5,
+      "end": 384.54,
+      "text": "freely available to the public."
+    },
+    {
+      "start": 384.54,
+      "end": 387.5,
+      "text": "And they have made weights available for multiple parameters,"
+    },
+    {
+      "start": 387.5,
+      "end": 392.19,
+      "text": "107 million, 124 million, 774 million, et cetera."
+    },
+    {
+      "start": 392.19,
+      "end": 396.47,
+      "text": "OpenAI even had a public announcement for GPT2,"
+    },
+    {
+      "start": 396.51,
+      "end": 398.63,
+      "text": "and that they released these weights."
+    },
+    {
+      "start": 398.63,
+      "end": 401.75,
+      "text": "What we are going to do is that instead of pre-training"
+    },
+    {
+      "start": 401.75,
+      "end": 404.15,
+      "text": "ourselves, which would involve a huge amount of cost"
+    },
+    {
+      "start": 404.15,
+      "end": 405.91,
+      "text": "and computational resources,"
+    },
+    {
+      "start": 405.91,
+      "end": 408.59,
+      "text": "we are just going to load the pre-trained GPT2 weights"
+    },
+    {
+      "start": 408.59,
+      "end": 410.47,
+      "text": "into this GPT model."
+    },
+    {
+      "start": 410.47,
+      "end": 414.49,
+      "text": "And we have done this before when we trained"
+    },
+    {
+      "start": 414.49,
+      "end": 416.29,
+      "text": "our large language model."
+    },
+    {
+      "start": 416.29,
+      "end": 418.53,
+      "text": "So let's get into code right now"
+    },
+    {
+      "start": 418.53,
+      "end": 420.49,
+      "text": "to see how this part is done."
+    },
+    {
+      "start": 420.49,
+      "end": 423.2,
+      "text": "And then we'll move to step number two."
+    },
+    {
+      "start": 423.2,
+      "end": 425.56,
+      "text": "Okay, so I'm going to take you to code right now."
+    },
+    {
+      "start": 425.56,
+      "end": 427.68,
+      "text": "Most of this lecture which we are going to do today"
+    },
+    {
+      "start": 427.68,
+      "end": 430.35,
+      "text": "will involve going through the code."
+    },
+    {
+      "start": 430.35,
+      "end": 433.43,
+      "text": "So I'll explain each part of the code to you step by step."
+    },
+    {
+      "start": 434.43,
+      "end": 437.55,
+      "text": "Okay, so now our first task is to prepare the model"
+    },
+    {
+      "start": 437.55,
+      "end": 439.75,
+      "text": "which we'll use for classification fine tuning"
+    },
+    {
+      "start": 439.75,
+      "end": 441.91,
+      "text": "to identify spam messages."
+    },
+    {
+      "start": 441.91,
+      "end": 444.07,
+      "text": "And what we are going to do is that we are going to use"
+    },
+    {
+      "start": 444.07,
+      "end": 446.43,
+      "text": "the same architecture which we have used"
+    },
+    {
+      "start": 446.43,
+      "end": 449.37,
+      "text": "and then load the pre-trained weights."
+    },
+    {
+      "start": 449.37,
+      "end": 452.45,
+      "text": "Later, we'll do a slight modification at this final layer,"
+    },
+    {
+      "start": 452.45,
+      "end": 453.89,
+      "text": "but for now, let's just see"
+    },
+    {
+      "start": 453.89,
+      "end": 455.85,
+      "text": "how to load the pre-trained weights."
+    },
+    {
+      "start": 455.85,
+      "end": 459.57,
+      "text": "So you can see that GPT when you download the weights"
+    },
+    {
+      "start": 459.57,
+      "end": 461.69,
+      "text": "from GPT2, you'll have models,"
+    },
+    {
+      "start": 461.69,
+      "end": 464.73,
+      "text": "small model, medium, large and the extra large."
+    },
+    {
+      "start": 464.73,
+      "end": 467.97,
+      "text": "We are going to choose the GPT small with GPT2 small"
+    },
+    {
+      "start": 467.97,
+      "end": 471.25,
+      "text": "which has 124 million parameters, right?"
+    },
+    {
+      "start": 471.25,
+      "end": 473.33,
+      "text": "So we have a base configuration"
+    },
+    {
+      "start": 473.33,
+      "end": 476.45,
+      "text": "which means that the vocabulary size is 50257."
+    },
+    {
+      "start": 476.45,
+      "end": 478.93,
+      "text": "The context length is 1024."
+    },
+    {
+      "start": 478.93,
+      "end": 480.57,
+      "text": "The dropout rate is zero"
+    },
+    {
+      "start": 480.57,
+      "end": 483.95,
+      "text": "and the query key value bias term is set to true."
+    },
+    {
+      "start": 483.95,
+      "end": 485.99,
+      "text": "These are the same values which were used"
+    },
+    {
+      "start": 485.99,
+      "end": 487.71,
+      "text": "when GPT2 was trained."
+    },
+    {
+      "start": 487.71,
+      "end": 489.57,
+      "text": "And since we are recycling those weights,"
+    },
+    {
+      "start": 489.57,
+      "end": 491.31,
+      "text": "we are using the same weights,"
+    },
+    {
+      "start": 491.31,
+      "end": 492.83,
+      "text": "the pre-trained GPT2 weights,"
+    },
+    {
+      "start": 492.83,
+      "end": 495.57,
+      "text": "we are retaining this configuration."
+    },
+    {
+      "start": 495.57,
+      "end": 497.65,
+      "text": "We are going to upload this base configuration"
+    },
+    {
+      "start": 497.65,
+      "end": 499.69,
+      "text": "with the model which we are going to choose."
+    },
+    {
+      "start": 499.69,
+      "end": 501.41,
+      "text": "And here you see, we are choosing"
+    },
+    {
+      "start": 501.41,
+      "end": 503.05,
+      "text": "from this model configs dictionary,"
+    },
+    {
+      "start": 503.05,
+      "end": 506.41,
+      "text": "we are choosing this choose model equal to GPT small."
+    },
+    {
+      "start": 506.41,
+      "end": 508.41,
+      "text": "So we have updated this base configuration"
+    },
+    {
+      "start": 508.41,
+      "end": 511.57,
+      "text": "with our model configuration as GPT2 small."
+    },
+    {
+      "start": 511.57,
+      "end": 514.17,
+      "text": "In this last code, what we are doing is that"
+    },
+    {
+      "start": 514.17,
+      "end": 517.73,
+      "text": "if our training dataset has some text messages"
+    },
+    {
+      "start": 517.73,
+      "end": 520.53,
+      "text": "whose maximum length is greater than the context length"
+    },
+    {
+      "start": 520.53,
+      "end": 524.51,
+      "text": "which is 1024, what we are going to do is that"
+    },
+    {
+      "start": 524.51,
+      "end": 526.85,
+      "text": "we are going to set the maximum length"
+    },
+    {
+      "start": 526.85,
+      "end": 528.65,
+      "text": "equal to the context length."
+    },
+    {
+      "start": 528.65,
+      "end": 533.51,
+      "text": "In short, we are going to remove all of the tokens"
+    },
+    {
+      "start": 533.51,
+      "end": 537.47,
+      "text": "which have higher length than the context length."
+    },
+    {
+      "start": 537.47,
+      "end": 540.71,
+      "text": "This is because our LLM can only process tokens"
+    },
+    {
+      "start": 540.71,
+      "end": 543.03,
+      "text": "with the maximum length equal to the context length"
+    },
+    {
+      "start": 543.03,
+      "end": 547.92,
+      "text": "and that is equal to 1024 in this particular case."
+    },
+    {
+      "start": 547.92,
+      "end": 548.76,
+      "text": "Awesome."
+    },
+    {
+      "start": 548.76,
+      "end": 550.92,
+      "text": "Now that we have the configuration ready,"
+    },
+    {
+      "start": 550.92,
+      "end": 553.6,
+      "text": "what we are going to do is that we are going to,"
+    },
+    {
+      "start": 555.32,
+      "end": 559.48,
+      "text": "we are going to download the GPT2 parameters"
+    },
+    {
+      "start": 559.48,
+      "end": 561.0,
+      "text": "and there is a specific way"
+    },
+    {
+      "start": 561.0,
+      "end": 563.56,
+      "text": "to download the GPT2 parameters."
+    },
+    {
+      "start": 563.56,
+      "end": 565.64,
+      "text": "And for that, I'm going to,"
+    },
+    {
+      "start": 565.64,
+      "end": 569.53,
+      "text": "I'm going to take you through the code file right now."
+    },
+    {
+      "start": 569.53,
+      "end": 572.5,
+      "text": "So let me take you through VS code."
+    },
+    {
+      "start": 572.5,
+      "end": 573.94,
+      "text": "Yeah. So as I mentioned,"
+    },
+    {
+      "start": 573.94,
+      "end": 577.7,
+      "text": "there is a specific way to download the GPT parameters"
+    },
+    {
+      "start": 577.7,
+      "end": 579.74,
+      "text": "and we have written this code called download"
+    },
+    {
+      "start": 579.74,
+      "end": 581.3,
+      "text": "and load GPT2."
+    },
+    {
+      "start": 581.3,
+      "end": 584.46,
+      "text": "What this code does is that it basically downloads"
+    },
+    {
+      "start": 584.46,
+      "end": 586.86,
+      "text": "the weights and the entire model details"
+    },
+    {
+      "start": 586.86,
+      "end": 589.74,
+      "text": "which have been prescribed by OpenAI"
+    },
+    {
+      "start": 589.74,
+      "end": 592.8,
+      "text": "when they made the GPT2 weights public."
+    },
+    {
+      "start": 592.8,
+      "end": 594.66,
+      "text": "So we are going to download all these files"
+    },
+    {
+      "start": 594.66,
+      "end": 597.82,
+      "text": "and then we are going to convert"
+    },
+    {
+      "start": 597.82,
+      "end": 599.3,
+      "text": "or we are going to return two things."
+    },
+    {
+      "start": 599.3,
+      "end": 601.14,
+      "text": "We are going to return settings"
+    },
+    {
+      "start": 601.14,
+      "end": 603.16,
+      "text": "and we are going to return params."
+    },
+    {
+      "start": 603.16,
+      "end": 606.66,
+      "text": "What settings is basically just these configurations,"
+    },
+    {
+      "start": 606.66,
+      "end": 608.46,
+      "text": "the vocabulary size, the context length,"
+    },
+    {
+      "start": 608.46,
+      "end": 609.9,
+      "text": "the embedding dimension,"
+    },
+    {
+      "start": 609.9,
+      "end": 611.62,
+      "text": "number of attention heads"
+    },
+    {
+      "start": 611.62,
+      "end": 614.19,
+      "text": "and number of transformer layers."
+    },
+    {
+      "start": 614.19,
+      "end": 616.31,
+      "text": "What this params is basically is that"
+    },
+    {
+      "start": 616.31,
+      "end": 618.35,
+      "text": "the params is a dictionary"
+    },
+    {
+      "start": 618.35,
+      "end": 620.79,
+      "text": "and this dictionary has been constructed"
+    },
+    {
+      "start": 620.79,
+      "end": 622.33,
+      "text": "in a very specific format."
+    },
+    {
+      "start": 622.33,
+      "end": 625.27,
+      "text": "So here is how the params dictionary looks like."
+    },
+    {
+      "start": 625.27,
+      "end": 627.59,
+      "text": "When the params dictionary is returned,"
+    },
+    {
+      "start": 627.59,
+      "end": 630.59,
+      "text": "we get a dictionary with five keys."
+    },
+    {
+      "start": 630.59,
+      "end": 632.23,
+      "text": "We get token embeddings."
+    },
+    {
+      "start": 632.23,
+      "end": 633.79,
+      "text": "We get positional embeddings."
+    },
+    {
+      "start": 633.79,
+      "end": 635.83,
+      "text": "We get all the parameters which are present"
+    },
+    {
+      "start": 635.83,
+      "end": 637.35,
+      "text": "in this transformer block,"
+    },
+    {
+      "start": 637.35,
+      "end": 639.59,
+      "text": "which I'm marking in blue right now."
+    },
+    {
+      "start": 639.59,
+      "end": 642.67,
+      "text": "Then we get the final normalization layer scale"
+    },
+    {
+      "start": 642.67,
+      "end": 644.19,
+      "text": "and shift parameters."
+    },
+    {
+      "start": 644.19,
+      "end": 645.31,
+      "text": "There is a separate lecture"
+    },
+    {
+      "start": 645.31,
+      "end": 648.11,
+      "text": "where we actually explain all of these parameters"
+    },
+    {
+      "start": 648.11,
+      "end": 651.55,
+      "text": "and how these keys are imported from GPT2."
+    },
+    {
+      "start": 651.55,
+      "end": 654.19,
+      "text": "But for now, all you need to know is that"
+    },
+    {
+      "start": 654.19,
+      "end": 656.76,
+      "text": "when you run this function,"
+    },
+    {
+      "start": 656.76,
+      "end": 657.92,
+      "text": "when you run this function,"
+    },
+    {
+      "start": 658.88,
+      "end": 660.92,
+      "text": "download and load GPT2,"
+    },
+    {
+      "start": 660.92,
+      "end": 662.76,
+      "text": "it will give you the settings dictionary,"
+    },
+    {
+      "start": 662.76,
+      "end": 666.28,
+      "text": "which is a list of the GPT2 configuration"
+    },
+    {
+      "start": 666.28,
+      "end": 668.6,
+      "text": "and it will give you the params dictionary,"
+    },
+    {
+      "start": 668.6,
+      "end": 671.08,
+      "text": "which consists of all the parameters"
+    },
+    {
+      "start": 671.08,
+      "end": 672.88,
+      "text": "organized in a specific format."
+    },
+    {
+      "start": 672.88,
+      "end": 674.4,
+      "text": "You get the token embeddings,"
+    },
+    {
+      "start": 674.4,
+      "end": 675.4,
+      "text": "positional embeddings,"
+    },
+    {
+      "start": 675.4,
+      "end": 677.6,
+      "text": "the transformer layer parameters"
+    },
+    {
+      "start": 677.6,
+      "end": 680.24,
+      "text": "and the output final normalization layer parameters"
+    },
+    {
+      "start": 680.24,
+      "end": 681.16,
+      "text": "as well."
+    },
+    {
+      "start": 681.16,
+      "end": 683.08,
+      "text": "Essentially, the params dictionary contains"
+    },
+    {
+      "start": 683.08,
+      "end": 685.8,
+      "text": "all the parameters you will need."
+    },
+    {
+      "start": 685.8,
+      "end": 687.6,
+      "text": "Now let's go back to code again."
+    },
+    {
+      "start": 689.32,
+      "end": 690.68,
+      "text": "So what we are going to do is that"
+    },
+    {
+      "start": 690.68,
+      "end": 693.12,
+      "text": "from this file called GPT download 3,"
+    },
+    {
+      "start": 693.12,
+      "end": 695.84,
+      "text": "we are going to import download and load GPT2."
+    },
+    {
+      "start": 695.84,
+      "end": 698.4,
+      "text": "That's the function which I just showed you right now."
+    },
+    {
+      "start": 698.4,
+      "end": 699.56,
+      "text": "And when you run this function,"
+    },
+    {
+      "start": 699.56,
+      "end": 701.04,
+      "text": "you have to pass in two arguments."
+    },
+    {
+      "start": 701.04,
+      "end": 702.92,
+      "text": "The first is the model size"
+    },
+    {
+      "start": 702.92,
+      "end": 704.68,
+      "text": "and the model size we are going to get"
+    },
+    {
+      "start": 704.68,
+      "end": 706.68,
+      "text": "from this choose model"
+    },
+    {
+      "start": 706.68,
+      "end": 708.84,
+      "text": "and that's going to be 124 million."
+    },
+    {
+      "start": 708.84,
+      "end": 710.2,
+      "text": "That's the model size."
+    },
+    {
+      "start": 710.2,
+      "end": 711.96,
+      "text": "And then you have to pass in the directory"
+    },
+    {
+      "start": 711.96,
+      "end": 714.12,
+      "text": "where you want to store the parameters."
+    },
+    {
+      "start": 714.12,
+      "end": 717.39,
+      "text": "So the directory I'm passing it as GPT2."
+    },
+    {
+      "start": 717.39,
+      "end": 718.87,
+      "text": "When you run this code,"
+    },
+    {
+      "start": 718.87,
+      "end": 721.79,
+      "text": "you will get two dictionary settings and the params."
+    },
+    {
+      "start": 721.79,
+      "end": 724.71,
+      "text": "Settings will contain the configuration file."
+    },
+    {
+      "start": 724.71,
+      "end": 726.43,
+      "text": "Params will essentially contain"
+    },
+    {
+      "start": 726.43,
+      "end": 731.53,
+      "text": "all the different parameters of GPT2."
+    },
+    {
+      "start": 731.53,
+      "end": 732.61,
+      "text": "Then what we do is that"
+    },
+    {
+      "start": 732.61,
+      "end": 735.53,
+      "text": "we initialize the instance of the GPT model class"
+    },
+    {
+      "start": 735.53,
+      "end": 737.05,
+      "text": "which we have defined earlier."
+    },
+    {
+      "start": 738.09,
+      "end": 741.21,
+      "text": "And then we call this function load weights into GPT."
+    },
+    {
+      "start": 741.21,
+      "end": 742.61,
+      "text": "What this function does is that"
+    },
+    {
+      "start": 742.61,
+      "end": 744.73,
+      "text": "it takes the params dictionary"
+    },
+    {
+      "start": 744.73,
+      "end": 747.09,
+      "text": "and then it loads all the weights from params"
+    },
+    {
+      "start": 747.09,
+      "end": 748.33,
+      "text": "into our model."
+    },
+    {
+      "start": 748.37,
+      "end": 751.41,
+      "text": "So let me show you what this load dictionary does."
+    },
+    {
+      "start": 751.41,
+      "end": 752.77,
+      "text": "It takes this model,"
+    },
+    {
+      "start": 754.87,
+      "end": 757.51,
+      "text": "it takes this model which we have created"
+    },
+    {
+      "start": 757.51,
+      "end": 759.99,
+      "text": "and at all the different places of this model"
+    },
+    {
+      "start": 759.99,
+      "end": 761.55,
+      "text": "where there are trainable parameters"
+    },
+    {
+      "start": 761.55,
+      "end": 763.15,
+      "text": "such as multi-head attention,"
+    },
+    {
+      "start": 763.15,
+      "end": 765.87,
+      "text": "layer normalization, feed forward neural network,"
+    },
+    {
+      "start": 765.87,
+      "end": 767.87,
+      "text": "token embedding, positional embedding,"
+    },
+    {
+      "start": 767.87,
+      "end": 769.83,
+      "text": "whatever I've marked with an arrow right now"
+    },
+    {
+      "start": 769.83,
+      "end": 771.75,
+      "text": "has trainable parameters, right?"
+    },
+    {
+      "start": 771.75,
+      "end": 773.59,
+      "text": "So this load,"
+    },
+    {
+      "start": 773.59,
+      "end": 775.95,
+      "text": "this load weights into GPT function."
+    },
+    {
+      "start": 775.95,
+      "end": 777.11,
+      "text": "What this does is that"
+    },
+    {
+      "start": 777.15,
+      "end": 779.99,
+      "text": "it takes the GPT2 parameters"
+    },
+    {
+      "start": 779.99,
+      "end": 783.59,
+      "text": "and it loads all of those parameters into this model."
+    },
+    {
+      "start": 783.59,
+      "end": 785.55,
+      "text": "Basically you can think of"
+    },
+    {
+      "start": 785.55,
+      "end": 788.27,
+      "text": "our model being fully equipped with the best parameters"
+    },
+    {
+      "start": 788.27,
+      "end": 792.08,
+      "text": "which have directly been loaded from GPT2."
+    },
+    {
+      "start": 792.08,
+      "end": 793.44,
+      "text": "In one of the previous lectures"
+    },
+    {
+      "start": 793.44,
+      "end": 795.64,
+      "text": "which is called pre-training,"
+    },
+    {
+      "start": 795.64,
+      "end": 797.52,
+      "text": "we have explained this entire code."
+    },
+    {
+      "start": 797.52,
+      "end": 800.16,
+      "text": "What is this function load weights into GPT,"
+    },
+    {
+      "start": 800.16,
+      "end": 802.0,
+      "text": "the GPT model class, et cetera."
+    },
+    {
+      "start": 802.0,
+      "end": 804.48,
+      "text": "For now, you can just follow along"
+    },
+    {
+      "start": 804.48,
+      "end": 806.28,
+      "text": "by understanding that we are loading"
+    },
+    {
+      "start": 806.28,
+      "end": 810.12,
+      "text": "the parameters of GPT2 into our model"
+    },
+    {
+      "start": 810.12,
+      "end": 812.28,
+      "text": "so that our model is already pre-trained."
+    },
+    {
+      "start": 813.49,
+      "end": 815.61,
+      "text": "And if you have already loaded this before,"
+    },
+    {
+      "start": 815.61,
+      "end": 817.21,
+      "text": "this should run very fast"
+    },
+    {
+      "start": 817.21,
+      "end": 819.09,
+      "text": "because the file already exists."
+    },
+    {
+      "start": 819.09,
+      "end": 821.45,
+      "text": "If you are running this for the first time,"
+    },
+    {
+      "start": 821.45,
+      "end": 826.09,
+      "text": "please keep in mind that the total parameter file size"
+    },
+    {
+      "start": 826.09,
+      "end": 829.89,
+      "text": "which is provided by GPT2, if you see these seven files,"
+    },
+    {
+      "start": 829.89,
+      "end": 830.73,
+      "text": "if you add it up,"
+    },
+    {
+      "start": 830.73,
+      "end": 832.57,
+      "text": "it comes to be around 500 megabytes."
+    },
+    {
+      "start": 832.57,
+      "end": 836.21,
+      "text": "So it may take time depending on the internet speed."
+    },
+    {
+      "start": 836.21,
+      "end": 837.41,
+      "text": "Once this is downloaded,"
+    },
+    {
+      "start": 837.41,
+      "end": 840.05,
+      "text": "you will see that your model is now updated"
+    },
+    {
+      "start": 840.05,
+      "end": 842.17,
+      "text": "with all the weights from GPT2."
+    },
+    {
+      "start": 842.17,
+      "end": 845.33,
+      "text": "You can even test whether the model was loaded correctly."
+    },
+    {
+      "start": 845.33,
+      "end": 848.57,
+      "text": "So you can pass in the input text every effort moves you."
+    },
+    {
+      "start": 848.57,
+      "end": 850.41,
+      "text": "And then you have the output function,"
+    },
+    {
+      "start": 850.41,
+      "end": 853.13,
+      "text": "generate text simple, which we had defined earlier."
+    },
+    {
+      "start": 853.13,
+      "end": 856.01,
+      "text": "What this function does is that it takes in the input text,"
+    },
+    {
+      "start": 856.01,
+      "end": 858.73,
+      "text": "it passes the input text through our model"
+    },
+    {
+      "start": 858.73,
+      "end": 860.41,
+      "text": "and then it generates an output."
+    },
+    {
+      "start": 860.41,
+      "end": 863.25,
+      "text": "So it generates 15 new tokens."
+    },
+    {
+      "start": 863.25,
+      "end": 865.61,
+      "text": "So here you can see that every effort moves you"
+    },
+    {
+      "start": 865.61,
+      "end": 868.81,
+      "text": "is the input and then the 15 new tokens are forward."
+    },
+    {
+      "start": 868.81,
+      "end": 871.57,
+      "text": "The first step is to understand the importance of your work."
+    },
+    {
+      "start": 871.57,
+      "end": 872.49,
+      "text": "Awesome, right?"
+    },
+    {
+      "start": 872.49,
+      "end": 875.17,
+      "text": "Which means that the pre-trained parameters are working"
+    },
+    {
+      "start": 875.17,
+      "end": 876.73,
+      "text": "because this is reasonable."
+    },
+    {
+      "start": 876.73,
+      "end": 877.93,
+      "text": "This text makes sense."
+    },
+    {
+      "start": 877.93,
+      "end": 879.84,
+      "text": "It is proper English."
+    },
+    {
+      "start": 879.84,
+      "end": 882.32,
+      "text": "Now, until now we are at a point"
+    },
+    {
+      "start": 882.32,
+      "end": 884.28,
+      "text": "where the GPT model parameters"
+    },
+    {
+      "start": 884.28,
+      "end": 886.76,
+      "text": "are loaded into our architecture."
+    },
+    {
+      "start": 886.76,
+      "end": 888.36,
+      "text": "Now we come to the next stage"
+    },
+    {
+      "start": 888.36,
+      "end": 891.72,
+      "text": "where we have to start fine tuning the model, right?"
+    },
+    {
+      "start": 891.72,
+      "end": 893.72,
+      "text": "But before we start fine tuning the model"
+    },
+    {
+      "start": 893.72,
+      "end": 895.12,
+      "text": "as a spam classifier,"
+    },
+    {
+      "start": 895.12,
+      "end": 898.48,
+      "text": "let's see if our model can already classify spam messages"
+    },
+    {
+      "start": 898.48,
+      "end": 901.0,
+      "text": "by prompting it with instructions."
+    },
+    {
+      "start": 901.0,
+      "end": 902.28,
+      "text": "So note that until now,"
+    },
+    {
+      "start": 902.28,
+      "end": 904.44,
+      "text": "the model just predicts next tokens."
+    },
+    {
+      "start": 904.44,
+      "end": 906.32,
+      "text": "We have not yet trained it to predict"
+    },
+    {
+      "start": 906.32,
+      "end": 908.58,
+      "text": "whether spam or no spam."
+    },
+    {
+      "start": 908.58,
+      "end": 911.06,
+      "text": "But let's see if our model has inherently"
+    },
+    {
+      "start": 911.06,
+      "end": 912.62,
+      "text": "learned these capabilities."
+    },
+    {
+      "start": 912.62,
+      "end": 913.9,
+      "text": "So what I'm going to do is that"
+    },
+    {
+      "start": 913.9,
+      "end": 916.66,
+      "text": "instead of providing text such as every effort moves you,"
+    },
+    {
+      "start": 916.66,
+      "end": 918.02,
+      "text": "in the text prompt itself,"
+    },
+    {
+      "start": 918.02,
+      "end": 920.62,
+      "text": "I'm going to say is the following text spam"
+    },
+    {
+      "start": 920.62,
+      "end": 922.18,
+      "text": "answer with a yes or no,"
+    },
+    {
+      "start": 922.18,
+      "end": 923.66,
+      "text": "and then I'm going to give the text,"
+    },
+    {
+      "start": 923.66,
+      "end": 924.54,
+      "text": "you are a winner."
+    },
+    {
+      "start": 924.54,
+      "end": 926.42,
+      "text": "You have specifically selected,"
+    },
+    {
+      "start": 926.42,
+      "end": 928.54,
+      "text": "you have been specifically selected"
+    },
+    {
+      "start": 928.54,
+      "end": 931.86,
+      "text": "to receive $1,000 cash or a $2,000 reward."
+    },
+    {
+      "start": 931.86,
+      "end": 933.54,
+      "text": "Note that we have not given the model"
+    },
+    {
+      "start": 933.54,
+      "end": 936.5,
+      "text": "any data set about our spam or no spam so far."
+    },
+    {
+      "start": 936.5,
+      "end": 938.14,
+      "text": "We are just checking whether,"
+    },
+    {
+      "start": 938.14,
+      "end": 940.38,
+      "text": "based on the GPT2 training itself,"
+    },
+    {
+      "start": 940.38,
+      "end": 941.98,
+      "text": "can it answer this?"
+    },
+    {
+      "start": 941.98,
+      "end": 943.38,
+      "text": "So when you pass it through the"
+    },
+    {
+      "start": 943.38,
+      "end": 945.34,
+      "text": "generate text simple function,"
+    },
+    {
+      "start": 945.34,
+      "end": 946.94,
+      "text": "let's see the answer."
+    },
+    {
+      "start": 946.94,
+      "end": 948.42,
+      "text": "So this is the question."
+    },
+    {
+      "start": 948.42,
+      "end": 950.78,
+      "text": "And the answer with GPT2 generates is that"
+    },
+    {
+      "start": 950.78,
+      "end": 953.58,
+      "text": "the following text spam answer with yes or no,"
+    },
+    {
+      "start": 953.58,
+      "end": 954.98,
+      "text": "you are a winner."
+    },
+    {
+      "start": 954.98,
+      "end": 957.06,
+      "text": "So it clearly fails."
+    },
+    {
+      "start": 957.06,
+      "end": 959.78,
+      "text": "The model struggles with following instructions."
+    },
+    {
+      "start": 959.78,
+      "end": 961.74,
+      "text": "And this is because the model has only"
+    },
+    {
+      "start": 961.74,
+      "end": 963.42,
+      "text": "undergone pre-training, right?"
+    },
+    {
+      "start": 963.42,
+      "end": 965.26,
+      "text": "It lacks any fine tuning."
+    },
+    {
+      "start": 965.26,
+      "end": 967.54,
+      "text": "So without any classification fine tuning,"
+    },
+    {
+      "start": 967.54,
+      "end": 970.7,
+      "text": "as we saw the model is not being able to"
+    },
+    {
+      "start": 970.7,
+      "end": 973.49,
+      "text": "perform correctly and that is expected."
+    },
+    {
+      "start": 973.49,
+      "end": 977.41,
+      "text": "So now let us go to step number,"
+    },
+    {
+      "start": 977.41,
+      "end": 979.97,
+      "text": "let us go to step number two."
+    },
+    {
+      "start": 979.97,
+      "end": 981.49,
+      "text": "So step number one was loading"
+    },
+    {
+      "start": 981.49,
+      "end": 983.57,
+      "text": "pre-trained GPT2 weights into the model"
+    },
+    {
+      "start": 983.57,
+      "end": 985.33,
+      "text": "and that we have finished right now."
+    },
+    {
+      "start": 985.33,
+      "end": 987.65,
+      "text": "And now we are moving to step number two."
+    },
+    {
+      "start": 987.65,
+      "end": 990.09,
+      "text": "Step number two is modifying the architecture"
+    },
+    {
+      "start": 990.09,
+      "end": 992.25,
+      "text": "by adding a classification head."
+    },
+    {
+      "start": 992.25,
+      "end": 995.39,
+      "text": "So let me explain this to you in detail actually."
+    },
+    {
+      "start": 995.39,
+      "end": 997.31,
+      "text": "So you might be thinking that our model"
+    },
+    {
+      "start": 997.31,
+      "end": 999.55,
+      "text": "has been trained to predict the next token, right?"
+    },
+    {
+      "start": 999.55,
+      "end": 1002.17,
+      "text": "How are we doing classification?"
+    },
+    {
+      "start": 1002.17,
+      "end": 1004.73,
+      "text": "So here is the part where this magic happens."
+    },
+    {
+      "start": 1004.73,
+      "end": 1006.73,
+      "text": "So if you remember the output layer,"
+    },
+    {
+      "start": 1006.73,
+      "end": 1010.44,
+      "text": "so let's look at this linear output layer"
+    },
+    {
+      "start": 1010.44,
+      "end": 1014.16,
+      "text": "in the text classification or in the text generation task"
+    },
+    {
+      "start": 1014.16,
+      "end": 1016.0,
+      "text": "for which this LLM is typically trained"
+    },
+    {
+      "start": 1016.0,
+      "end": 1018.08,
+      "text": "on this output layer looks like this,"
+    },
+    {
+      "start": 1018.08,
+      "end": 1020.44,
+      "text": "where you have input which is 768"
+    },
+    {
+      "start": 1020.44,
+      "end": 1022.48,
+      "text": "of the embedding dimension size"
+    },
+    {
+      "start": 1022.48,
+      "end": 1025.48,
+      "text": "and the output is equal to 50257"
+    },
+    {
+      "start": 1025.48,
+      "end": 1027.52,
+      "text": "because that's the vocabulary size."
+    },
+    {
+      "start": 1027.52,
+      "end": 1032.93,
+      "text": "So when you have every effort moves you,"
+    },
+    {
+      "start": 1035.28,
+      "end": 1036.6,
+      "text": "if this is the input,"
+    },
+    {
+      "start": 1036.6,
+      "end": 1039.56,
+      "text": "the output for every row,"
+    },
+    {
+      "start": 1039.56,
+      "end": 1043.63,
+      "text": "the output will have 50257 columns"
+    },
+    {
+      "start": 1043.63,
+      "end": 1045.87,
+      "text": "because that's equal to vocabulary size."
+    },
+    {
+      "start": 1045.87,
+      "end": 1049.79,
+      "text": "So there will be 50257 entries for every 50257 entries"
+    },
+    {
+      "start": 1049.79,
+      "end": 1052.87,
+      "text": "for effort, 50257 entries for moves"
+    },
+    {
+      "start": 1052.87,
+      "end": 1055.39,
+      "text": "and 50257 entries for you."
+    },
+    {
+      "start": 1055.39,
+      "end": 1057.47,
+      "text": "So if you want to predict the next token"
+    },
+    {
+      "start": 1057.47,
+      "end": 1059.31,
+      "text": "after every effort moves you,"
+    },
+    {
+      "start": 1059.31,
+      "end": 1060.63,
+      "text": "you look at the final row"
+    },
+    {
+      "start": 1060.63,
+      "end": 1062.27,
+      "text": "and then you choose that token ID"
+    },
+    {
+      "start": 1062.27,
+      "end": 1064.03,
+      "text": "with the maximum probability."
+    },
+    {
+      "start": 1064.03,
+      "end": 1065.47,
+      "text": "That gives you the next token."
+    },
+    {
+      "start": 1065.47,
+      "end": 1067.71,
+      "text": "This is how you predict the next tokens."
+    },
+    {
+      "start": 1067.71,
+      "end": 1070.75,
+      "text": "But now we don't need the next token prediction, right?"
+    },
+    {
+      "start": 1070.75,
+      "end": 1072.87,
+      "text": "Now our job is to simply classify"
+    },
+    {
+      "start": 1072.91,
+      "end": 1075.27,
+      "text": "whether it's a yes or no."
+    },
+    {
+      "start": 1075.27,
+      "end": 1077.99,
+      "text": "So what we are going to now do is that"
+    },
+    {
+      "start": 1077.99,
+      "end": 1079.99,
+      "text": "we are going to do the same thing,"
+    },
+    {
+      "start": 1079.99,
+      "end": 1081.75,
+      "text": "but the output dimension will change."
+    },
+    {
+      "start": 1081.75,
+      "end": 1083.83,
+      "text": "Every effort moves you."
+    },
+    {
+      "start": 1083.83,
+      "end": 1085.27,
+      "text": "This is my input, right?"
+    },
+    {
+      "start": 1085.27,
+      "end": 1090.3,
+      "text": "Now for every token, we want two outputs."
+    },
+    {
+      "start": 1090.3,
+      "end": 1092.66,
+      "text": "Either it's a yes or it's a no."
+    },
+    {
+      "start": 1092.66,
+      "end": 1095.34,
+      "text": "So two outputs for every, two outputs for effort,"
+    },
+    {
+      "start": 1095.34,
+      "end": 1098.66,
+      "text": "two outputs for moves and two outputs for you."
+    },
+    {
+      "start": 1098.66,
+      "end": 1100.02,
+      "text": "So to get the final answer,"
+    },
+    {
+      "start": 1100.02,
+      "end": 1101.66,
+      "text": "we are going to look at the final row,"
+    },
+    {
+      "start": 1101.66,
+      "end": 1103.46,
+      "text": "which is you, since it contains"
+    },
+    {
+      "start": 1103.46,
+      "end": 1105.42,
+      "text": "all of the previous information."
+    },
+    {
+      "start": 1105.42,
+      "end": 1107.62,
+      "text": "And then we are going to see the yes value"
+    },
+    {
+      "start": 1107.62,
+      "end": 1109.66,
+      "text": "and then we are going to see the no value."
+    },
+    {
+      "start": 1109.66,
+      "end": 1112.14,
+      "text": "These values will be indicative of probabilities."
+    },
+    {
+      "start": 1112.14,
+      "end": 1114.9,
+      "text": "So then we are going to, based on which is higher,"
+    },
+    {
+      "start": 1114.9,
+      "end": 1117.66,
+      "text": "we'll classify whether it's spam or no spam."
+    },
+    {
+      "start": 1117.66,
+      "end": 1120.86,
+      "text": "So instead of having this final neural network"
+    },
+    {
+      "start": 1120.86,
+      "end": 1123.9,
+      "text": "output layer sizes 50257,"
+    },
+    {
+      "start": 1123.9,
+      "end": 1126.82,
+      "text": "we are going to replace,"
+    },
+    {
+      "start": 1126.82,
+      "end": 1129.06,
+      "text": "replace the original linear output layer"
+    },
+    {
+      "start": 1129.06,
+      "end": 1132.5,
+      "text": "with a layer that maps from 768 hidden units"
+    },
+    {
+      "start": 1132.5,
+      "end": 1134.34,
+      "text": "into only two units."
+    },
+    {
+      "start": 1134.34,
+      "end": 1136.38,
+      "text": "And what are these two units corresponding to?"
+    },
+    {
+      "start": 1136.38,
+      "end": 1139.14,
+      "text": "The two units are corresponding to simply spam"
+    },
+    {
+      "start": 1140.14,
+      "end": 1144.08,
+      "text": "versus no spam."
+    },
+    {
+      "start": 1144.08,
+      "end": 1146.04,
+      "text": "This is the only change which we are going to do"
+    },
+    {
+      "start": 1146.04,
+      "end": 1147.88,
+      "text": "in the LLM architecture."
+    },
+    {
+      "start": 1147.88,
+      "end": 1149.32,
+      "text": "When I saw this for the first time,"
+    },
+    {
+      "start": 1149.32,
+      "end": 1150.6,
+      "text": "I was pretty amazed by it"
+    },
+    {
+      "start": 1150.6,
+      "end": 1153.44,
+      "text": "because I had never seen a classification head."
+    },
+    {
+      "start": 1153.44,
+      "end": 1155.68,
+      "text": "So this can be thought of as the classification head"
+    },
+    {
+      "start": 1155.68,
+      "end": 1156.88,
+      "text": "right now."
+    },
+    {
+      "start": 1156.88,
+      "end": 1158.28,
+      "text": "So let me just write the name."
+    },
+    {
+      "start": 1158.28,
+      "end": 1163.9,
+      "text": "This can be thought of as a classification head."
+    },
+    {
+      "start": 1163.9,
+      "end": 1165.26,
+      "text": "I was pretty amazed by this"
+    },
+    {
+      "start": 1165.26,
+      "end": 1167.1,
+      "text": "because I had only done classification"
+    },
+    {
+      "start": 1167.1,
+      "end": 1169.9,
+      "text": "using neural networks and decision trees before."
+    },
+    {
+      "start": 1169.9,
+      "end": 1172.3,
+      "text": "I never thought you can add this classification head"
+    },
+    {
+      "start": 1172.3,
+      "end": 1174.1,
+      "text": "on top of a GPT architecture"
+    },
+    {
+      "start": 1174.1,
+      "end": 1177.02,
+      "text": "and use that itself as the classifier."
+    },
+    {
+      "start": 1177.02,
+      "end": 1178.94,
+      "text": "It might be over killing it"
+    },
+    {
+      "start": 1178.94,
+      "end": 1180.46,
+      "text": "because even a decision tree"
+    },
+    {
+      "start": 1180.46,
+      "end": 1182.14,
+      "text": "or a neural network might work,"
+    },
+    {
+      "start": 1182.14,
+      "end": 1184.22,
+      "text": "but this is just a fun application to consider"
+    },
+    {
+      "start": 1184.22,
+      "end": 1185.86,
+      "text": "that LLMs can actually be used"
+    },
+    {
+      "start": 1185.86,
+      "end": 1188.1,
+      "text": "to perform classification tasks."
+    },
+    {
+      "start": 1188.1,
+      "end": 1190.7,
+      "text": "Whether LLMs perform better than neural networks"
+    },
+    {
+      "start": 1190.7,
+      "end": 1191.58,
+      "text": "or decision trees,"
+    },
+    {
+      "start": 1191.58,
+      "end": 1193.54,
+      "text": "that's a question of open research"
+    },
+    {
+      "start": 1193.54,
+      "end": 1197.41,
+      "text": "and that needs to be figured out still."
+    },
+    {
+      "start": 1197.41,
+      "end": 1199.57,
+      "text": "Okay, so this is the classification head now"
+    },
+    {
+      "start": 1199.57,
+      "end": 1202.85,
+      "text": "which is added on top of the GPT model architecture"
+    },
+    {
+      "start": 1202.85,
+      "end": 1204.61,
+      "text": "and that is used to classify"
+    },
+    {
+      "start": 1204.61,
+      "end": 1207.58,
+      "text": "whether the answer is yes or no."
+    },
+    {
+      "start": 1207.58,
+      "end": 1210.02,
+      "text": "Okay, one more thing which I would like to mention"
+    },
+    {
+      "start": 1210.02,
+      "end": 1211.74,
+      "text": "before we dive into the code is that"
+    },
+    {
+      "start": 1211.74,
+      "end": 1214.86,
+      "text": "we can actually select which layers we want to fine tune."
+    },
+    {
+      "start": 1214.86,
+      "end": 1217.02,
+      "text": "So of course, when you add this classification head,"
+    },
+    {
+      "start": 1217.02,
+      "end": 1220.22,
+      "text": "this was not present in the original GPT to architecture."
+    },
+    {
+      "start": 1220.22,
+      "end": 1223.02,
+      "text": "So these parameters we will need to fine tune,"
+    },
+    {
+      "start": 1223.02,
+      "end": 1224.82,
+      "text": "but we have an option to choose"
+    },
+    {
+      "start": 1224.82,
+      "end": 1226.62,
+      "text": "among all of these parameters,"
+    },
+    {
+      "start": 1227.74,
+      "end": 1229.98,
+      "text": "GPT2 has already given me many parameters."
+    },
+    {
+      "start": 1229.98,
+      "end": 1232.9,
+      "text": "So how much do I need to fine tune?"
+    },
+    {
+      "start": 1232.9,
+      "end": 1235.18,
+      "text": "So that's a call which you need to make, right?"
+    },
+    {
+      "start": 1235.18,
+      "end": 1236.54,
+      "text": "So one thing which I've mentioned here"
+    },
+    {
+      "start": 1236.54,
+      "end": 1239.62,
+      "text": "is that since we already start with a pre-trained model"
+    },
+    {
+      "start": 1239.62,
+      "end": 1241.74,
+      "text": "as we have loaded the GPT2 weights,"
+    },
+    {
+      "start": 1241.74,
+      "end": 1244.42,
+      "text": "it is really not necessary for us to fine tune"
+    },
+    {
+      "start": 1244.42,
+      "end": 1246.38,
+      "text": "all the layers."
+    },
+    {
+      "start": 1246.38,
+      "end": 1247.86,
+      "text": "This is because the lower layer"
+    },
+    {
+      "start": 1247.86,
+      "end": 1249.98,
+      "text": "such as the token embedding layer,"
+    },
+    {
+      "start": 1249.98,
+      "end": 1251.3,
+      "text": "the positional embedding layer,"
+    },
+    {
+      "start": 1251.3,
+      "end": 1253.54,
+      "text": "the layer normalization here, et cetera."
+    },
+    {
+      "start": 1253.54,
+      "end": 1255.5,
+      "text": "These lower layers really capture"
+    },
+    {
+      "start": 1255.5,
+      "end": 1258.18,
+      "text": "the basic language structures and semantics,"
+    },
+    {
+      "start": 1258.18,
+      "end": 1260.66,
+      "text": "which are applicable across a wide range of tasks"
+    },
+    {
+      "start": 1260.66,
+      "end": 1261.74,
+      "text": "and data set."
+    },
+    {
+      "start": 1261.74,
+      "end": 1263.34,
+      "text": "This is very important."
+    },
+    {
+      "start": 1263.34,
+      "end": 1265.06,
+      "text": "The lower layers, if you see,"
+    },
+    {
+      "start": 1265.06,
+      "end": 1266.82,
+      "text": "the lower layers have token embedding"
+    },
+    {
+      "start": 1266.82,
+      "end": 1269.14,
+      "text": "which captures captures the semantic meaning."
+    },
+    {
+      "start": 1269.14,
+      "end": 1270.98,
+      "text": "It has the positional embedding."
+    },
+    {
+      "start": 1270.98,
+      "end": 1273.86,
+      "text": "And then we have some amount of multi head attention,"
+    },
+    {
+      "start": 1273.86,
+      "end": 1275.74,
+      "text": "et cetera, where token embeddings"
+    },
+    {
+      "start": 1275.74,
+      "end": 1277.5,
+      "text": "are converted into context vectors"
+    },
+    {
+      "start": 1277.5,
+      "end": 1281.02,
+      "text": "or input embeddings are converted into context vectors,"
+    },
+    {
+      "start": 1281.02,
+      "end": 1282.66,
+      "text": "which contain information about"
+    },
+    {
+      "start": 1282.66,
+      "end": 1285.86,
+      "text": "how much attention one token pays to all other tokens."
+    },
+    {
+      "start": 1285.86,
+      "end": 1289.61,
+      "text": "And GPT2 has been trained on huge amounts of text."
+    },
+    {
+      "start": 1289.61,
+      "end": 1291.49,
+      "text": "So it already contains some information"
+    },
+    {
+      "start": 1291.49,
+      "end": 1292.97,
+      "text": "about meaning, et cetera."
+    },
+    {
+      "start": 1292.97,
+      "end": 1294.81,
+      "text": "So if you give an email, let's say,"
+    },
+    {
+      "start": 1294.81,
+      "end": 1297.09,
+      "text": "there is already some intuition baked in"
+    },
+    {
+      "start": 1297.09,
+      "end": 1299.53,
+      "text": "about whether this email is kind of a spam"
+    },
+    {
+      "start": 1299.53,
+      "end": 1302.37,
+      "text": "or what kind of information is it representing."
+    },
+    {
+      "start": 1302.37,
+      "end": 1304.93,
+      "text": "That information is already captured"
+    },
+    {
+      "start": 1304.93,
+      "end": 1306.93,
+      "text": "in this lower layer somehow"
+    },
+    {
+      "start": 1306.93,
+      "end": 1309.89,
+      "text": "because GPT2 is a very smart and intelligent model."
+    },
+    {
+      "start": 1309.89,
+      "end": 1312.01,
+      "text": "It does capture this information."
+    },
+    {
+      "start": 1312.01,
+      "end": 1315.45,
+      "text": "So we have a choice as to which layers we want to fine tune."
+    },
+    {
+      "start": 1315.45,
+      "end": 1317.37,
+      "text": "So the choice which we are making here is that"
+    },
+    {
+      "start": 1317.37,
+      "end": 1320.13,
+      "text": "we are only going to fine tune the last layers."
+    },
+    {
+      "start": 1320.13,
+      "end": 1321.73,
+      "text": "So we are definitely going to fine tune"
+    },
+    {
+      "start": 1321.73,
+      "end": 1323.33,
+      "text": "this classification head."
+    },
+    {
+      "start": 1323.33,
+      "end": 1325.37,
+      "text": "We will definitely fine tune the final"
+    },
+    {
+      "start": 1325.37,
+      "end": 1326.85,
+      "text": "linear normalization layer,"
+    },
+    {
+      "start": 1326.85,
+      "end": 1329.25,
+      "text": "which has the scale and the shift parameters."
+    },
+    {
+      "start": 1329.25,
+      "end": 1333.08,
+      "text": "And we are going to fine tune the final transformer block."
+    },
+    {
+      "start": 1333.08,
+      "end": 1335.08,
+      "text": "So remember the GPT2 architecture"
+    },
+    {
+      "start": 1335.08,
+      "end": 1339.35,
+      "text": "had 12 transformer blocks like this, right?"
+    },
+    {
+      "start": 1339.35,
+      "end": 1342.75,
+      "text": "Instead of fine tuning all of the 12 transformer blocks,"
+    },
+    {
+      "start": 1342.75,
+      "end": 1346.07,
+      "text": "we are only going to fine tune the final transformer block."
+    },
+    {
+      "start": 1346.07,
+      "end": 1348.67,
+      "text": "We are going to assume that all the other transformer blocks"
+    },
+    {
+      "start": 1348.67,
+      "end": 1350.55,
+      "text": "inherently contains some information"
+    },
+    {
+      "start": 1350.55,
+      "end": 1353.91,
+      "text": "about what the text in the data represents."
+    },
+    {
+      "start": 1353.91,
+      "end": 1357.31,
+      "text": "So this is a good mix between achieving good accuracy"
+    },
+    {
+      "start": 1357.31,
+      "end": 1359.91,
+      "text": "as well as reducing the computational cost."
+    },
+    {
+      "start": 1359.91,
+      "end": 1361.99,
+      "text": "Remember if you were to fine tune everything again,"
+    },
+    {
+      "start": 1361.99,
+      "end": 1364.99,
+      "text": "then what is the purpose of loading pre-trained weights, right?"
+    },
+    {
+      "start": 1364.99,
+      "end": 1367.79,
+      "text": "The reason we loaded pre-trained weights from GPT2"
+    },
+    {
+      "start": 1367.79,
+      "end": 1371.83,
+      "text": "is because it would fully capture some semantic meaning"
+    },
+    {
+      "start": 1371.83,
+      "end": 1374.63,
+      "text": "as to what the text represents."
+    },
+    {
+      "start": 1374.63,
+      "end": 1376.83,
+      "text": "So what we are going to do is that we are only going"
+    },
+    {
+      "start": 1376.83,
+      "end": 1378.39,
+      "text": "to fine tune three things."
+    },
+    {
+      "start": 1378.39,
+      "end": 1380.71,
+      "text": "We are going to fine tune the final output head,"
+    },
+    {
+      "start": 1380.71,
+      "end": 1383.27,
+      "text": "which is this classification head over here,"
+    },
+    {
+      "start": 1383.27,
+      "end": 1386.19,
+      "text": "because of course that was not present in GPT2."
+    },
+    {
+      "start": 1386.19,
+      "end": 1388.83,
+      "text": "Then we are going to fine tune the final transformer block,"
+    },
+    {
+      "start": 1388.83,
+      "end": 1390.63,
+      "text": "the 12 transformer block,"
+    },
+    {
+      "start": 1390.63,
+      "end": 1391.83,
+      "text": "and we are going to fine tune"
+    },
+    {
+      "start": 1391.83,
+      "end": 1393.83,
+      "text": "the final layer normalization module."
+    },
+    {
+      "start": 1393.83,
+      "end": 1395.87,
+      "text": "That is what we are going to do."
+    },
+    {
+      "start": 1395.87,
+      "end": 1398.03,
+      "text": "These three things we are going to fine tune,"
+    },
+    {
+      "start": 1398.03,
+      "end": 1400.75,
+      "text": "rest all the other parameters we are going to freeze,"
+    },
+    {
+      "start": 1400.75,
+      "end": 1402.11,
+      "text": "which means we are not going to train"
+    },
+    {
+      "start": 1402.11,
+      "end": 1403.47,
+      "text": "the remaining parameters."
+    },
+    {
+      "start": 1405.64,
+      "end": 1407.68,
+      "text": "And one more thing which I wanted to explain"
+    },
+    {
+      "start": 1407.68,
+      "end": 1409.68,
+      "text": "before we go to the code is that,"
+    },
+    {
+      "start": 1409.68,
+      "end": 1410.92,
+      "text": "let's see here, right?"
+    },
+    {
+      "start": 1410.92,
+      "end": 1415.56,
+      "text": "So every token will produce output two tokens, right?"
+    },
+    {
+      "start": 1415.56,
+      "end": 1418.16,
+      "text": "So let's say every effort moves you is my sentence."
+    },
+    {
+      "start": 1418.16,
+      "end": 1420.88,
+      "text": "So what is the output, whether it's spam or not spam?"
+    },
+    {
+      "start": 1420.88,
+      "end": 1423.4,
+      "text": "Which of these four tokens should I look at?"
+    },
+    {
+      "start": 1423.4,
+      "end": 1424.72,
+      "text": "Should I look at the first token,"
+    },
+    {
+      "start": 1424.72,
+      "end": 1427.28,
+      "text": "the second token, third token, or fourth token?"
+    },
+    {
+      "start": 1427.28,
+      "end": 1429.64,
+      "text": "Because all of them will have this yes, no values."
+    },
+    {
+      "start": 1429.64,
+      "end": 1431.79,
+      "text": "Which token should I look at?"
+    },
+    {
+      "start": 1431.79,
+      "end": 1434.11,
+      "text": "So here there's a nice schematic to mention"
+    },
+    {
+      "start": 1434.11,
+      "end": 1437.63,
+      "text": "that why should we always extract the last output token?"
+    },
+    {
+      "start": 1437.63,
+      "end": 1439.83,
+      "text": "We should always extract the last output token"
+    },
+    {
+      "start": 1439.83,
+      "end": 1443.3,
+      "text": "because the last token is the only one"
+    },
+    {
+      "start": 1443.3,
+      "end": 1446.42,
+      "text": "which with an attention score to all the other tokens."
+    },
+    {
+      "start": 1446.42,
+      "end": 1448.78,
+      "text": "If you look at the second token, let's say,"
+    },
+    {
+      "start": 1448.78,
+      "end": 1450.34,
+      "text": "it will only contain the attention"
+    },
+    {
+      "start": 1450.34,
+      "end": 1451.94,
+      "text": "with respect to first token."
+    },
+    {
+      "start": 1451.94,
+      "end": 1453.26,
+      "text": "If you look at the third token,"
+    },
+    {
+      "start": 1453.26,
+      "end": 1454.54,
+      "text": "it will only contain attention"
+    },
+    {
+      "start": 1454.54,
+      "end": 1456.58,
+      "text": "with respect to previous two tokens."
+    },
+    {
+      "start": 1456.62,
+      "end": 1458.98,
+      "text": "Whereas the last token has all the information."
+    },
+    {
+      "start": 1458.98,
+      "end": 1460.46,
+      "text": "It contains attention with respect"
+    },
+    {
+      "start": 1460.46,
+      "end": 1462.42,
+      "text": "to all the previous tokens."
+    },
+    {
+      "start": 1462.42,
+      "end": 1465.74,
+      "text": "So if you want to predict whether it's spam or not spam,"
+    },
+    {
+      "start": 1465.74,
+      "end": 1468.14,
+      "text": "you want to predict from that row"
+    },
+    {
+      "start": 1468.14,
+      "end": 1469.7,
+      "text": "which contains maximum amount"
+    },
+    {
+      "start": 1469.7,
+      "end": 1471.94,
+      "text": "of information present in the sentence."
+    },
+    {
+      "start": 1471.94,
+      "end": 1474.34,
+      "text": "So that is equal to the last token right here."
+    },
+    {
+      "start": 1474.34,
+      "end": 1478.06,
+      "text": "So we are going to extract the last token output row"
+    },
+    {
+      "start": 1478.06,
+      "end": 1479.94,
+      "text": "and we are going to use that to predict"
+    },
+    {
+      "start": 1479.94,
+      "end": 1481.14,
+      "text": "whether the email is spam"
+    },
+    {
+      "start": 1481.14,
+      "end": 1483.87,
+      "text": "or whether the email is not a spam."
+    },
+    {
+      "start": 1483.87,
+      "end": 1485.51,
+      "text": "So this is exactly all of this"
+    },
+    {
+      "start": 1485.51,
+      "end": 1488.31,
+      "text": "is what I'm going to show you in the code right now."
+    },
+    {
+      "start": 1488.31,
+      "end": 1490.11,
+      "text": "So let's go to code."
+    },
+    {
+      "start": 1490.11,
+      "end": 1491.67,
+      "text": "The first thing which we are going to do"
+    },
+    {
+      "start": 1491.67,
+      "end": 1494.03,
+      "text": "is add a classification head at the top"
+    },
+    {
+      "start": 1494.03,
+      "end": 1496.99,
+      "text": "which is what I showed you over here in the figure."
+    },
+    {
+      "start": 1496.99,
+      "end": 1499.95,
+      "text": "We are going to replace this original output head"
+    },
+    {
+      "start": 1499.95,
+      "end": 1502.66,
+      "text": "with the classification head."
+    },
+    {
+      "start": 1502.66,
+      "end": 1503.5,
+      "text": "So in this section,"
+    },
+    {
+      "start": 1503.5,
+      "end": 1506.54,
+      "text": "we modify the pre-trained large language model"
+    },
+    {
+      "start": 1506.54,
+      "end": 1509.5,
+      "text": "to prepare it for classification fine tuning."
+    },
+    {
+      "start": 1509.5,
+      "end": 1512.14,
+      "text": "To do this, we replace the original output layer"
+    },
+    {
+      "start": 1512.14,
+      "end": 1513.94,
+      "text": "which maps the hidden representation"
+    },
+    {
+      "start": 1513.94,
+      "end": 1516.74,
+      "text": "to a vocabulary size of 50257"
+    },
+    {
+      "start": 1516.74,
+      "end": 1518.26,
+      "text": "with a smaller output layer"
+    },
+    {
+      "start": 1518.26,
+      "end": 1520.98,
+      "text": "that maps to only two classes, zero and one."
+    },
+    {
+      "start": 1520.98,
+      "end": 1523.9,
+      "text": "So look at this, we want this kind of an output layer"
+    },
+    {
+      "start": 1523.9,
+      "end": 1526.14,
+      "text": "which only has two outputs, either zero or one."
+    },
+    {
+      "start": 1526.14,
+      "end": 1529.27,
+      "text": "So two neurons at the end."
+    },
+    {
+      "start": 1529.27,
+      "end": 1531.55,
+      "text": "So one thing which I would like to mention is there,"
+    },
+    {
+      "start": 1531.55,
+      "end": 1533.39,
+      "text": "mention is that we could technically use"
+    },
+    {
+      "start": 1533.39,
+      "end": 1534.79,
+      "text": "a single output node"
+    },
+    {
+      "start": 1534.79,
+      "end": 1537.11,
+      "text": "since we are dealing with a binary classification task,"
+    },
+    {
+      "start": 1537.11,
+      "end": 1538.55,
+      "text": "right?"
+    },
+    {
+      "start": 1538.55,
+      "end": 1541.15,
+      "text": "However, this is not a generic approach."
+    },
+    {
+      "start": 1541.15,
+      "end": 1542.43,
+      "text": "If we use a single output head,"
+    },
+    {
+      "start": 1542.43,
+      "end": 1545.43,
+      "text": "that's not generic if we have more number of classes."
+    },
+    {
+      "start": 1545.43,
+      "end": 1547.75,
+      "text": "So here what we are doing is that"
+    },
+    {
+      "start": 1547.75,
+      "end": 1550.03,
+      "text": "we are doing a more general approach."
+    },
+    {
+      "start": 1550.03,
+      "end": 1550.99,
+      "text": "What we are going to say"
+    },
+    {
+      "start": 1550.99,
+      "end": 1552.95,
+      "text": "when we code the model architecture is that"
+    },
+    {
+      "start": 1552.95,
+      "end": 1555.91,
+      "text": "we are going to say that the final number of output nodes"
+    },
+    {
+      "start": 1555.91,
+      "end": 1558.15,
+      "text": "should be equal to the number of classes."
+    },
+    {
+      "start": 1558.15,
+      "end": 1560.15,
+      "text": "So we are not hard coding the output nodes"
+    },
+    {
+      "start": 1560.15,
+      "end": 1562.43,
+      "text": "but we are getting the number of classes"
+    },
+    {
+      "start": 1562.43,
+      "end": 1564.55,
+      "text": "and we are setting the final number of output nodes"
+    },
+    {
+      "start": 1564.55,
+      "end": 1565.59,
+      "text": "equal to that."
+    },
+    {
+      "start": 1565.59,
+      "end": 1567.51,
+      "text": "So for example, if we have three classes"
+    },
+    {
+      "start": 1567.51,
+      "end": 1569.67,
+      "text": "such as technology, sports or medicine,"
+    },
+    {
+      "start": 1569.67,
+      "end": 1572.63,
+      "text": "our same code is going to work for this modification"
+    },
+    {
+      "start": 1572.63,
+      "end": 1574.55,
+      "text": "because then the final number of output nodes"
+    },
+    {
+      "start": 1574.55,
+      "end": 1576.11,
+      "text": "will be equal to three."
+    },
+    {
+      "start": 1576.11,
+      "end": 1579.38,
+      "text": "That's just a small detail which I wanted to mention."
+    },
+    {
+      "start": 1579.38,
+      "end": 1581.7,
+      "text": "So before we construct the model architecture,"
+    },
+    {
+      "start": 1581.7,
+      "end": 1583.98,
+      "text": "we can print the original model architecture."
+    },
+    {
+      "start": 1583.98,
+      "end": 1586.9,
+      "text": "So we print out the original model architecture"
+    },
+    {
+      "start": 1586.9,
+      "end": 1589.34,
+      "text": "and you can see that there are 12 transformer blocks."
+    },
+    {
+      "start": 1589.34,
+      "end": 1591.79,
+      "text": "So here you see,"
+    },
+    {
+      "start": 1591.79,
+      "end": 1594.47,
+      "text": "so the number of transformer block goes from zero to 11."
+    },
+    {
+      "start": 1594.47,
+      "end": 1596.55,
+      "text": "That's why there are 12 transformer blocks"
+    },
+    {
+      "start": 1596.55,
+      "end": 1599.53,
+      "text": "and there is an output projection layer at the end."
+    },
+    {
+      "start": 1600.93,
+      "end": 1601.81,
+      "text": "Awesome."
+    },
+    {
+      "start": 1601.81,
+      "end": 1603.29,
+      "text": "So this is the output head."
+    },
+    {
+      "start": 1603.29,
+      "end": 1606.49,
+      "text": "So here you see this has input dimension of 768"
+    },
+    {
+      "start": 1606.49,
+      "end": 1609.13,
+      "text": "and output feature dimension of 50257."
+    },
+    {
+      "start": 1609.13,
+      "end": 1611.65,
+      "text": "This is the one which we plan to change to two."
+    },
+    {
+      "start": 1611.65,
+      "end": 1617.02,
+      "text": "Instead of 50257, we just want two as the output features."
+    },
+    {
+      "start": 1617.02,
+      "end": 1618.26,
+      "text": "So as discussed earlier,"
+    },
+    {
+      "start": 1618.26,
+      "end": 1620.62,
+      "text": "the GPT model consists of embedding layers,"
+    },
+    {
+      "start": 1620.62,
+      "end": 1622.46,
+      "text": "token embedding and positional embedding"
+    },
+    {
+      "start": 1622.46,
+      "end": 1625.75,
+      "text": "followed by 12 identical transformer block"
+    },
+    {
+      "start": 1625.75,
+      "end": 1628.19,
+      "text": "followed by a final layer normalization"
+    },
+    {
+      "start": 1628.23,
+      "end": 1630.71,
+      "text": "and the output layer, output head."
+    },
+    {
+      "start": 1630.71,
+      "end": 1632.15,
+      "text": "So what we are going to do is that"
+    },
+    {
+      "start": 1632.15,
+      "end": 1633.75,
+      "text": "we are going to replace the output head"
+    },
+    {
+      "start": 1633.75,
+      "end": 1635.51,
+      "text": "with a new output layer."
+    },
+    {
+      "start": 1635.51,
+      "end": 1637.71,
+      "text": "As we have illustrated in this figure over here,"
+    },
+    {
+      "start": 1637.71,
+      "end": 1640.15,
+      "text": "we want to replace this original output head"
+    },
+    {
+      "start": 1640.15,
+      "end": 1643.44,
+      "text": "with this new output head, right?"
+    },
+    {
+      "start": 1643.44,
+      "end": 1645.24,
+      "text": "To do that, to get the model ready"
+    },
+    {
+      "start": 1645.24,
+      "end": 1646.84,
+      "text": "for classification fine tuning,"
+    },
+    {
+      "start": 1646.84,
+      "end": 1648.56,
+      "text": "we first freeze the model,"
+    },
+    {
+      "start": 1648.56,
+      "end": 1650.48,
+      "text": "which means that we are going to first"
+    },
+    {
+      "start": 1650.48,
+      "end": 1653.0,
+      "text": "make all the layers non-trainable."
+    },
+    {
+      "start": 1653.0,
+      "end": 1656.16,
+      "text": "So the way to freeze the entire model is that"
+    },
+    {
+      "start": 1656.16,
+      "end": 1660.0,
+      "text": "we just do, for all the parameters in model.parameters,"
+    },
+    {
+      "start": 1660.0,
+      "end": 1663.68,
+      "text": "we say that requires grad is equal to false,"
+    },
+    {
+      "start": 1663.68,
+      "end": 1665.44,
+      "text": "which means that we are not going to"
+    },
+    {
+      "start": 1665.44,
+      "end": 1667.36,
+      "text": "update this parameter at all,"
+    },
+    {
+      "start": 1667.36,
+      "end": 1668.48,
+      "text": "which means that we are going to"
+    },
+    {
+      "start": 1668.48,
+      "end": 1670.68,
+      "text": "freeze all the model parameters."
+    },
+    {
+      "start": 1670.68,
+      "end": 1674.28,
+      "text": "Then we are going to tell this model"
+    },
+    {
+      "start": 1674.28,
+      "end": 1677.84,
+      "text": "which are the parameters which we are going to fine tune."
+    },
+    {
+      "start": 1677.84,
+      "end": 1680.56,
+      "text": "So as I mentioned, there are three sets of parameters"
+    },
+    {
+      "start": 1680.56,
+      "end": 1682.08,
+      "text": "which we are going to fine tune."
+    },
+    {
+      "start": 1682.08,
+      "end": 1683.64,
+      "text": "There is the final output head,"
+    },
+    {
+      "start": 1683.64,
+      "end": 1685.28,
+      "text": "there is the final transformer block"
+    },
+    {
+      "start": 1685.28,
+      "end": 1687.48,
+      "text": "and there is the final layer norm module."
+    },
+    {
+      "start": 1687.48,
+      "end": 1691.08,
+      "text": "So first let's modify the final output head architecture."
+    },
+    {
+      "start": 1691.08,
+      "end": 1695.84,
+      "text": "So we are going to say that model.outoutputhead is now,"
+    },
+    {
+      "start": 1695.84,
+      "end": 1698.88,
+      "text": "the size is input features are the embedding dimension."
+    },
+    {
+      "start": 1698.88,
+      "end": 1700.44,
+      "text": "The input feature remains the same,"
+    },
+    {
+      "start": 1700.44,
+      "end": 1702.32,
+      "text": "that's equal to 768."
+    },
+    {
+      "start": 1702.32,
+      "end": 1705.44,
+      "text": "The output features now is equal to the number of classes."
+    },
+    {
+      "start": 1705.44,
+      "end": 1707.2,
+      "text": "So if number of classes equal to two,"
+    },
+    {
+      "start": 1707.2,
+      "end": 1708.68,
+      "text": "the output features will be two,"
+    },
+    {
+      "start": 1708.68,
+      "end": 1711.4,
+      "text": "which is in this case spam versus no spam."
+    },
+    {
+      "start": 1711.4,
+      "end": 1712.88,
+      "text": "If number of classes is three,"
+    },
+    {
+      "start": 1712.88,
+      "end": 1714.96,
+      "text": "the output features will be equal to three."
+    },
+    {
+      "start": 1714.96,
+      "end": 1716.8,
+      "text": "So that's one simple change which we make."
+    },
+    {
+      "start": 1716.8,
+      "end": 1719.48,
+      "text": "This indicates to PyTorch that these parameters"
+    },
+    {
+      "start": 1719.48,
+      "end": 1722.36,
+      "text": "need to be updated, these parameters need to change."
+    },
+    {
+      "start": 1724.54,
+      "end": 1729.27,
+      "text": "Okay, so this new model.outputhead output layer"
+    },
+    {
+      "start": 1729.27,
+      "end": 1732.63,
+      "text": "has its requires grad attribute set to true by default,"
+    },
+    {
+      "start": 1732.63,
+      "end": 1734.95,
+      "text": "which means that it's the only layer in the model"
+    },
+    {
+      "start": 1734.95,
+      "end": 1736.99,
+      "text": "that will be updated during training."
+    },
+    {
+      "start": 1736.99,
+      "end": 1739.11,
+      "text": "So here we have freezed all the parameters,"
+    },
+    {
+      "start": 1739.11,
+      "end": 1741.95,
+      "text": "but when we change the model output head structure,"
+    },
+    {
+      "start": 1741.95,
+      "end": 1744.07,
+      "text": "the new model output head output layer"
+    },
+    {
+      "start": 1744.07,
+      "end": 1747.35,
+      "text": "has requires grad attribute set to true by default,"
+    },
+    {
+      "start": 1747.35,
+      "end": 1751.1,
+      "text": "which means we are going to update those parameters."
+    },
+    {
+      "start": 1751.1,
+      "end": 1752.5,
+      "text": "So additionally, as I mentioned,"
+    },
+    {
+      "start": 1752.5,
+      "end": 1755.38,
+      "text": "we are going to update two more sets of parameters."
+    },
+    {
+      "start": 1755.38,
+      "end": 1757.54,
+      "text": "We are going to look at the last transformer block,"
+    },
+    {
+      "start": 1757.54,
+      "end": 1759.34,
+      "text": "the 12th transformer block,"
+    },
+    {
+      "start": 1759.34,
+      "end": 1762.58,
+      "text": "and we are going to modify its parameters as well."
+    },
+    {
+      "start": 1762.58,
+      "end": 1765.42,
+      "text": "And we are going to look at the final layer normalization,"
+    },
+    {
+      "start": 1766.49,
+      "end": 1768.85,
+      "text": "which connects the output of the transformer block"
+    },
+    {
+      "start": 1768.85,
+      "end": 1770.45,
+      "text": "to the final output head."
+    },
+    {
+      "start": 1770.45,
+      "end": 1772.57,
+      "text": "These we are going to make as trainable."
+    },
+    {
+      "start": 1772.57,
+      "end": 1774.37,
+      "text": "So I mentioned this to you over here, right?"
+    },
+    {
+      "start": 1774.37,
+      "end": 1775.89,
+      "text": "The final transformer block"
+    },
+    {
+      "start": 1775.89,
+      "end": 1777.65,
+      "text": "and the final layer normalization."
+    },
+    {
+      "start": 1777.65,
+      "end": 1779.61,
+      "text": "Those we are going to make trainable."
+    },
+    {
+      "start": 1779.61,
+      "end": 1781.85,
+      "text": "So here you see what I'm doing."
+    },
+    {
+      "start": 1781.85,
+      "end": 1784.77,
+      "text": "I'm saying that you look at the transformer blocks"
+    },
+    {
+      "start": 1784.77,
+      "end": 1786.13,
+      "text": "and this minus one indicates"
+    },
+    {
+      "start": 1786.13,
+      "end": 1788.41,
+      "text": "that you look at the last transformer block."
+    },
+    {
+      "start": 1788.41,
+      "end": 1791.09,
+      "text": "You look at the parameters in the last transformer block"
+    },
+    {
+      "start": 1791.09,
+      "end": 1793.25,
+      "text": "and then you set all of those parameters"
+    },
+    {
+      "start": 1793.25,
+      "end": 1794.77,
+      "text": "to be equal to trainable"
+    },
+    {
+      "start": 1794.77,
+      "end": 1797.17,
+      "text": "by setting requires grad equal to true."
+    },
+    {
+      "start": 1797.17,
+      "end": 1799.81,
+      "text": "And then you look at the model final normalization"
+    },
+    {
+      "start": 1799.81,
+      "end": 1802.05,
+      "text": "parameters, which would be shift and scale."
+    },
+    {
+      "start": 1802.05,
+      "end": 1805.49,
+      "text": "And those you change to params.required grad equal to true."
+    },
+    {
+      "start": 1805.49,
+      "end": 1808.25,
+      "text": "Now you see there is a lot of scope for experimentation here."
+    },
+    {
+      "start": 1808.25,
+      "end": 1811.21,
+      "text": "You can even switch this off and try to see the result."
+    },
+    {
+      "start": 1811.21,
+      "end": 1812.53,
+      "text": "You can make the parameters"
+    },
+    {
+      "start": 1812.53,
+      "end": 1815.29,
+      "text": "of last two transformer blocks to be trainable."
+    },
+    {
+      "start": 1815.29,
+      "end": 1816.57,
+      "text": "You can switch this off."
+    },
+    {
+      "start": 1816.57,
+      "end": 1817.57,
+      "text": "You can see the results."
+    },
+    {
+      "start": 1817.57,
+      "end": 1820.93,
+      "text": "You can maybe make this as false and check the results."
+    },
+    {
+      "start": 1820.93,
+      "end": 1823.45,
+      "text": "So whatever code which I'm showing to you right now,"
+    },
+    {
+      "start": 1823.45,
+      "end": 1827.17,
+      "text": "there is a lot of room for exploration over here."
+    },
+    {
+      "start": 1827.17,
+      "end": 1828.01,
+      "text": "Awesome."
+    },
+    {
+      "start": 1828.01,
+      "end": 1829.21,
+      "text": "So now you can see that"
+    },
+    {
+      "start": 1829.21,
+      "end": 1831.05,
+      "text": "we have added a new output layer"
+    },
+    {
+      "start": 1831.05,
+      "end": 1835.04,
+      "text": "and mark certain layers as trainable or non-trainable."
+    },
+    {
+      "start": 1835.04,
+      "end": 1835.88,
+      "text": "Great."
+    },
+    {
+      "start": 1835.88,
+      "end": 1838.24,
+      "text": "So let us just take one sample input."
+    },
+    {
+      "start": 1838.24,
+      "end": 1842.16,
+      "text": "So the sample input corresponds to do you have time."
+    },
+    {
+      "start": 1842.16,
+      "end": 1843.88,
+      "text": "So this has four token IDs."
+    },
+    {
+      "start": 1843.88,
+      "end": 1845.28,
+      "text": "And what we are going to do is that"
+    },
+    {
+      "start": 1845.28,
+      "end": 1847.68,
+      "text": "we are going to pass the inputs through our model now"
+    },
+    {
+      "start": 1847.68,
+      "end": 1849.2,
+      "text": "and let's see the output."
+    },
+    {
+      "start": 1849.2,
+      "end": 1852.32,
+      "text": "So as expected, do has two tokens,"
+    },
+    {
+      "start": 1852.32,
+      "end": 1854.8,
+      "text": "you has two tokens, have has two tokens"
+    },
+    {
+      "start": 1854.8,
+      "end": 1857.44,
+      "text": "and time has two tokens corresponding to spam"
+    },
+    {
+      "start": 1857.44,
+      "end": 1858.52,
+      "text": "or no spam."
+    },
+    {
+      "start": 1858.52,
+      "end": 1859.36,
+      "text": "And as I mentioned,"
+    },
+    {
+      "start": 1859.36,
+      "end": 1861.12,
+      "text": "we are going to look at the last,"
+    },
+    {
+      "start": 1861.12,
+      "end": 1862.84,
+      "text": "we are going to look at the last row"
+    },
+    {
+      "start": 1862.84,
+      "end": 1865.08,
+      "text": "and we'll extract only the last row"
+    },
+    {
+      "start": 1865.08,
+      "end": 1867.76,
+      "text": "to predict whether spam or no spam."
+    },
+    {
+      "start": 1867.76,
+      "end": 1869.96,
+      "text": "And the reason we saw was that the last row,"
+    },
+    {
+      "start": 1869.96,
+      "end": 1871.96,
+      "text": "the last token is the only one"
+    },
+    {
+      "start": 1871.96,
+      "end": 1874.0,
+      "text": "with an attention score to all other tokens."
+    },
+    {
+      "start": 1874.0,
+      "end": 1876.68,
+      "text": "So it contains maximum information."
+    },
+    {
+      "start": 1876.68,
+      "end": 1878.52,
+      "text": "Until now we have not done the training,"
+    },
+    {
+      "start": 1878.52,
+      "end": 1881.68,
+      "text": "the models, the parameters in this output head,"
+    },
+    {
+      "start": 1883.94,
+      "end": 1885.98,
+      "text": "the parameters in this output head"
+    },
+    {
+      "start": 1885.98,
+      "end": 1888.38,
+      "text": "and the parameters in the final transformer block,"
+    },
+    {
+      "start": 1888.38,
+      "end": 1890.66,
+      "text": "final layer normalization are still random."
+    },
+    {
+      "start": 1890.66,
+      "end": 1893.38,
+      "text": "They have not been trained on our spam"
+    },
+    {
+      "start": 1893.38,
+      "end": 1897.86,
+      "text": "and no spam data set, but that's fine."
+    },
+    {
+      "start": 1897.86,
+      "end": 1900.74,
+      "text": "Currently, I just want to show you the output"
+    },
+    {
+      "start": 1900.74,
+      "end": 1902.82,
+      "text": "and the output will be random for now,"
+    },
+    {
+      "start": 1902.82,
+      "end": 1904.94,
+      "text": "but I just want to show you the dimensions."
+    },
+    {
+      "start": 1904.94,
+      "end": 1907.02,
+      "text": "So when the input is, do you have time?"
+    },
+    {
+      "start": 1907.02,
+      "end": 1908.94,
+      "text": "You will see that for four tokens,"
+    },
+    {
+      "start": 1908.94,
+      "end": 1911.38,
+      "text": "for each of the token there are two outputs here."
+    },
+    {
+      "start": 1911.38,
+      "end": 1913.1,
+      "text": "And we are going to look at the two outputs"
+    },
+    {
+      "start": 1913.1,
+      "end": 1914.5,
+      "text": "of the last token"
+    },
+    {
+      "start": 1914.5,
+      "end": 1916.58,
+      "text": "and we are going to see whether for spam,"
+    },
+    {
+      "start": 1916.58,
+      "end": 1918.46,
+      "text": "the value is higher or no spam, it's higher."
+    },
+    {
+      "start": 1918.46,
+      "end": 1919.9,
+      "text": "And then we are going to choose the one"
+    },
+    {
+      "start": 1919.9,
+      "end": 1924.49,
+      "text": "with the higher value and make our prediction like that."
+    },
+    {
+      "start": 1924.49,
+      "end": 1928.1,
+      "text": "Okay, so remember that we are interested"
+    },
+    {
+      "start": 1928.1,
+      "end": 1929.34,
+      "text": "in fine tuning this model"
+    },
+    {
+      "start": 1929.34,
+      "end": 1931.7,
+      "text": "so that it returns a class label that indicates"
+    },
+    {
+      "start": 1931.7,
+      "end": 1934.3,
+      "text": "whether the model input is spam or not a spam."
+    },
+    {
+      "start": 1934.3,
+      "end": 1936.18,
+      "text": "To achieve this, we don't need to fine tune"
+    },
+    {
+      "start": 1936.18,
+      "end": 1937.58,
+      "text": "all the four output rows."
+    },
+    {
+      "start": 1937.58,
+      "end": 1939.26,
+      "text": "As I mentioned, we don't need to fine tune"
+    },
+    {
+      "start": 1939.26,
+      "end": 1941.02,
+      "text": "all these four output rows,"
+    },
+    {
+      "start": 1941.02,
+      "end": 1943.98,
+      "text": "but we can focus on a single output token."
+    },
+    {
+      "start": 1943.98,
+      "end": 1945.86,
+      "text": "We will focus on the last row corresponding"
+    },
+    {
+      "start": 1945.86,
+      "end": 1947.14,
+      "text": "to the last output token"
+    },
+    {
+      "start": 1947.14,
+      "end": 1949.26,
+      "text": "since it contains all the information."
+    },
+    {
+      "start": 1949.26,
+      "end": 1951.14,
+      "text": "So to extract the last output token,"
+    },
+    {
+      "start": 1951.14,
+      "end": 1953.78,
+      "text": "we are simply going to use this command outputs,"
+    },
+    {
+      "start": 1953.78,
+      "end": 1955.5,
+      "text": "colon minus one and colon,"
+    },
+    {
+      "start": 1955.5,
+      "end": 1959.02,
+      "text": "which will extract the last output row from this tensor."
+    },
+    {
+      "start": 1961.42,
+      "end": 1964.66,
+      "text": "So the reason why minus one comes in the middle here"
+    },
+    {
+      "start": 1964.66,
+      "end": 1966.34,
+      "text": "is that look at the tensor dimension."
+    },
+    {
+      "start": 1966.34,
+      "end": 1970.58,
+      "text": "The number of rows is in the second position, right?"
+    },
+    {
+      "start": 1970.58,
+      "end": 1972.1,
+      "text": "So that's why the second position"
+    },
+    {
+      "start": 1972.1,
+      "end": 1973.5,
+      "text": "we have to specify minus one"
+    },
+    {
+      "start": 1973.5,
+      "end": 1975.54,
+      "text": "since we are looking at the last row."
+    },
+    {
+      "start": 1975.54,
+      "end": 1976.74,
+      "text": "And when you specify this,"
+    },
+    {
+      "start": 1976.74,
+      "end": 1978.34,
+      "text": "you'll see that out of these four,"
+    },
+    {
+      "start": 1978.34,
+      "end": 1980.26,
+      "text": "the last output is extracted,"
+    },
+    {
+      "start": 1980.26,
+      "end": 1984.74,
+      "text": "which is minus 3.58983 and 3.9902."
+    },
+    {
+      "start": 1984.74,
+      "end": 1986.46,
+      "text": "So until now, what we have done is that"
+    },
+    {
+      "start": 1986.46,
+      "end": 1988.82,
+      "text": "we have just modified the model architecture, right?"
+    },
+    {
+      "start": 1988.82,
+      "end": 1992.78,
+      "text": "We have not trained the model on our dataset."
+    },
+    {
+      "start": 1992.78,
+      "end": 1994.7,
+      "text": "And to train the model on our dataset,"
+    },
+    {
+      "start": 1994.7,
+      "end": 1997.22,
+      "text": "what we need to do is that we need to define the loss."
+    },
+    {
+      "start": 1997.22,
+      "end": 1999.06,
+      "text": "We need to define a loss function,"
+    },
+    {
+      "start": 1999.06,
+      "end": 2001.14,
+      "text": "and then we need to implement back propagation."
+    },
+    {
+      "start": 2001.14,
+      "end": 2003.95,
+      "text": "That's when the model will be trained."
+    },
+    {
+      "start": 2003.95,
+      "end": 2006.07,
+      "text": "So what we'll be doing in the next section is that"
+    },
+    {
+      "start": 2006.07,
+      "end": 2007.35,
+      "text": "we'll be detailing the process"
+    },
+    {
+      "start": 2007.35,
+      "end": 2008.83,
+      "text": "of transforming the last token"
+    },
+    {
+      "start": 2008.83,
+      "end": 2010.81,
+      "text": "into class label predictions."
+    },
+    {
+      "start": 2010.81,
+      "end": 2013.01,
+      "text": "And then we'll calculate the model accuracy"
+    },
+    {
+      "start": 2013.01,
+      "end": 2015.13,
+      "text": "and then we'll calculate the loss function."
+    },
+    {
+      "start": 2015.13,
+      "end": 2016.53,
+      "text": "Once we have the loss function"
+    },
+    {
+      "start": 2016.53,
+      "end": 2018.89,
+      "text": "based on our underlying training data,"
+    },
+    {
+      "start": 2018.89,
+      "end": 2020.05,
+      "text": "which has been collected"
+    },
+    {
+      "start": 2020.05,
+      "end": 2022.65,
+      "text": "from this machine learning UC Irvine repository."
+    },
+    {
+      "start": 2022.65,
+      "end": 2024.01,
+      "text": "Once we have the loss function,"
+    },
+    {
+      "start": 2024.01,
+      "end": 2026.13,
+      "text": "then we are ready to do back propagation"
+    },
+    {
+      "start": 2026.13,
+      "end": 2028.45,
+      "text": "and then we are ready to fine tune the parameters."
+    },
+    {
+      "start": 2028.45,
+      "end": 2029.69,
+      "text": "So then we'll do the training"
+    },
+    {
+      "start": 2029.69,
+      "end": 2032.88,
+      "text": "and testing after that in the subsequent lectures."
+    },
+    {
+      "start": 2032.88,
+      "end": 2034.16,
+      "text": "So next lecture we'll focus"
+    },
+    {
+      "start": 2034.16,
+      "end": 2038.63,
+      "text": "on calculating the classification loss and accuracy."
+    },
+    {
+      "start": 2038.63,
+      "end": 2039.67,
+      "text": "Thank you so much, everyone."
+    },
+    {
+      "start": 2039.67,
+      "end": 2041.51,
+      "text": "This brings us to the end of the lecture."
+    },
+    {
+      "start": 2041.51,
+      "end": 2044.71,
+      "text": "We are now quite close to performing this hands-on project"
+    },
+    {
+      "start": 2044.71,
+      "end": 2046.35,
+      "text": "and taking it to completion."
+    },
+    {
+      "start": 2046.35,
+      "end": 2047.79,
+      "text": "Because until now what we have done"
+    },
+    {
+      "start": 2047.79,
+      "end": 2049.75,
+      "text": "is that we have reached these steps."
+    },
+    {
+      "start": 2049.75,
+      "end": 2050.99,
+      "text": "We have reached step number here"
+    },
+    {
+      "start": 2050.99,
+      "end": 2053.83,
+      "text": "where we now the model is ready to be fine-tuned."
+    },
+    {
+      "start": 2053.83,
+      "end": 2054.79,
+      "text": "Now in the next step,"
+    },
+    {
+      "start": 2054.79,
+      "end": 2056.23,
+      "text": "we have to just implement the loss"
+    },
+    {
+      "start": 2056.23,
+      "end": 2058.95,
+      "text": "and the accuracy evaluation utilities."
+    },
+    {
+      "start": 2058.95,
+      "end": 2060.55,
+      "text": "And then we'll fine-tune the model,"
+    },
+    {
+      "start": 2060.55,
+      "end": 2063.59,
+      "text": "test the fine-tuned model on new data as well."
+    },
+    {
+      "start": 2063.59,
+      "end": 2065.55,
+      "text": "So there are a lot of fun lectures coming up."
+    },
+    {
+      "start": 2065.55,
+      "end": 2067.63,
+      "text": "And at the end of this set of lectures,"
+    },
+    {
+      "start": 2067.63,
+      "end": 2070.39,
+      "text": "you will have build your own classification fine-tuning"
+    },
+    {
+      "start": 2070.39,
+      "end": 2072.72,
+      "text": "completely from scratch."
+    },
+    {
+      "start": 2072.72,
+      "end": 2073.72,
+      "text": "Thank you so much, everyone."
+    },
+    {
+      "start": 2073.72,
+      "end": 2074.88,
+      "text": "I hope you learned a lot."
+    },
+    {
+      "start": 2074.88,
+      "end": 2077.32,
+      "text": "And I look forward to seeing you in the next lecture."
+    }
+  ],
+  "full_text": "Hello everyone and welcome to this lecture in the build large language models from scratch series. Today we are going to continue with the classification fine-tuning example which we have been seeing for the past two lectures. The main goal of today's lecture is to perform model initialization with pre-trained weights and then we will also do some changes in the GPT or the LLM architecture so that it can perform classification tasks. Let me give you a quick recap of what all we have been doing in this hands-on LLM classification project. Basically, we started out with this problem where we have been given certain text as data and we want to use a large language model to classify whether it's a spam or whether it's not a spam and this comes under the category of fine-tuning. We already have built a pre-trained LLM model in this lecture series, however we have not fine-tuned it further. Fine-tuning is extremely essential for adapting a pre-trained model to a specific task so there are two types instruction fine-tuning and classification fine-tuning. We have started with instruction fine-tuning and are looking at this hands-on email classification example. So here are the steps which we are going to follow when we make this classification. Up till now we have covered these three steps which have been marked in blue. So we downloaded the data set, we pre-processed the data set and we created data loaders. Let me quickly show you these three steps and what all we have implemented so far. So this is the data set which you can see in the UC Irvine machine learning repository. It's called SMS spam collection and when you download this data set you will see that it looks something like this. So you have labels as ham which is not a spam and spam and the data set when you download it you will see that the no spam there are 4, 8, 2, 5 and spam there are only 7, 47. So the first step we did was to balance this data set so that both the spam as well as no spam have 7, 47 data counts. So that's data pre-processing then what we did is we created data loaders so that we can feed in the input and get feed in the input in batches. So the main aim of data loaders was also to convert the data set into a set of input and target pairs. So let me show you how these input and target pairs actually look like. In the last lecture we converted the data set into these two tensors. So this first tensor here is the inputs tensor and this second tensor here is the target tensor. You'll see that your every batch has eight input samples. So this I'm showing one batch over here and it has eight text samples. So each row here corresponds to one such sample and every column here corresponds to the number of tokens. So we have broken down these sentences into tokens and use the byte pair encoder to convert these into token IDs. We have made sure that all of these sentences are converted into equal number of token IDs and wherever the sentences are short, we have padded them with the token 50256 token ID, which corresponds to the end of text. So here you can see this is the input tensor. It has eight rows and it has 120 tokens. We get this number 120 based on the longest text message in the data set. And then if you look at the output tensor, it's just zeros or ones. So zero means zero stands for no spam and one stands for spam. So whenever you have, you have the data set right now and when we want to train on the data set, the optimizer, which we'll define later will process each batch. So in each batch, you will process this eight text samples and it also has these outputs to work with. So using data loaders has made our job very easy in terms of data management. So you see, we have covered these three steps so far. Downloading the data set, pre-processing the data set by making sure that the no spam and spam categories are balanced. And then finally, we also created the training data loader, the testing data loader and validation data loader. We have used 70% of the data for training, 10% of the data for validation, and 20% of the data for testing. And you'll also see that in the code over here. So you can see here 0.7 is the training data, 0.1 is the validation data, and 0.2 is the fraction of the testing data. Right, and we have this spam data set class, which is then fed as an input to our data loaders. So this is the training data loader, validation data loader and the testing data loader. The output of these data loaders are in the batched format, which I showed you in this visual representation. If you want a more detailed description of how we did the data downloading and how we performed the data pre-processing, I would highly encourage you to go through the previous two lectures. Now we have come to stage two, where our goal will be to first initialize the large language model which we are going to use. Then we are going to load pre-trained weights from GPT2. And then we will modify the model architecture a bit for fine tuning. And then finally, we will implement evaluation utilities. In today's lecture, we will do step number four, step number five and step number six. So it will be a comprehensive lecture, and let's get started. Now we have these data loaders training, testing and validation. So now we come to the GPT architecture. So here you see, in this lecture series so far, we have constructed this architecture which is, which I've zoomed in on the screen right now. Don't focus on these two images on the right, just look at this gray colored architecture. This is the LLM architecture, which we have focused up till now. What we are going to do first is that we are going to first load the pre-trained GPT2 weights into this architecture. And if you have not seen the previous lectures, let me just give you that recap. OpenAI has basically made the GPT2 weights free, freely available to the public. And they have made weights available for multiple parameters, 107 million, 124 million, 774 million, et cetera. OpenAI even had a public announcement for GPT2, and that they released these weights. What we are going to do is that instead of pre-training ourselves, which would involve a huge amount of cost and computational resources, we are just going to load the pre-trained GPT2 weights into this GPT model. And we have done this before when we trained our large language model. So let's get into code right now to see how this part is done. And then we'll move to step number two. Okay, so I'm going to take you to code right now. Most of this lecture which we are going to do today will involve going through the code. So I'll explain each part of the code to you step by step. Okay, so now our first task is to prepare the model which we'll use for classification fine tuning to identify spam messages. And what we are going to do is that we are going to use the same architecture which we have used and then load the pre-trained weights. Later, we'll do a slight modification at this final layer, but for now, let's just see how to load the pre-trained weights. So you can see that GPT when you download the weights from GPT2, you'll have models, small model, medium, large and the extra large. We are going to choose the GPT small with GPT2 small which has 124 million parameters, right? So we have a base configuration which means that the vocabulary size is 50257. The context length is 1024. The dropout rate is zero and the query key value bias term is set to true. These are the same values which were used when GPT2 was trained. And since we are recycling those weights, we are using the same weights, the pre-trained GPT2 weights, we are retaining this configuration. We are going to upload this base configuration with the model which we are going to choose. And here you see, we are choosing from this model configs dictionary, we are choosing this choose model equal to GPT small. So we have updated this base configuration with our model configuration as GPT2 small. In this last code, what we are doing is that if our training dataset has some text messages whose maximum length is greater than the context length which is 1024, what we are going to do is that we are going to set the maximum length equal to the context length. In short, we are going to remove all of the tokens which have higher length than the context length. This is because our LLM can only process tokens with the maximum length equal to the context length and that is equal to 1024 in this particular case. Awesome. Now that we have the configuration ready, what we are going to do is that we are going to, we are going to download the GPT2 parameters and there is a specific way to download the GPT2 parameters. And for that, I'm going to, I'm going to take you through the code file right now. So let me take you through VS code. Yeah. So as I mentioned, there is a specific way to download the GPT parameters and we have written this code called download and load GPT2. What this code does is that it basically downloads the weights and the entire model details which have been prescribed by OpenAI when they made the GPT2 weights public. So we are going to download all these files and then we are going to convert or we are going to return two things. We are going to return settings and we are going to return params. What settings is basically just these configurations, the vocabulary size, the context length, the embedding dimension, number of attention heads and number of transformer layers. What this params is basically is that the params is a dictionary and this dictionary has been constructed in a very specific format. So here is how the params dictionary looks like. When the params dictionary is returned, we get a dictionary with five keys. We get token embeddings. We get positional embeddings. We get all the parameters which are present in this transformer block, which I'm marking in blue right now. Then we get the final normalization layer scale and shift parameters. There is a separate lecture where we actually explain all of these parameters and how these keys are imported from GPT2. But for now, all you need to know is that when you run this function, when you run this function, download and load GPT2, it will give you the settings dictionary, which is a list of the GPT2 configuration and it will give you the params dictionary, which consists of all the parameters organized in a specific format. You get the token embeddings, positional embeddings, the transformer layer parameters and the output final normalization layer parameters as well. Essentially, the params dictionary contains all the parameters you will need. Now let's go back to code again. So what we are going to do is that from this file called GPT download 3, we are going to import download and load GPT2. That's the function which I just showed you right now. And when you run this function, you have to pass in two arguments. The first is the model size and the model size we are going to get from this choose model and that's going to be 124 million. That's the model size. And then you have to pass in the directory where you want to store the parameters. So the directory I'm passing it as GPT2. When you run this code, you will get two dictionary settings and the params. Settings will contain the configuration file. Params will essentially contain all the different parameters of GPT2. Then what we do is that we initialize the instance of the GPT model class which we have defined earlier. And then we call this function load weights into GPT. What this function does is that it takes the params dictionary and then it loads all the weights from params into our model. So let me show you what this load dictionary does. It takes this model, it takes this model which we have created and at all the different places of this model where there are trainable parameters such as multi-head attention, layer normalization, feed forward neural network, token embedding, positional embedding, whatever I've marked with an arrow right now has trainable parameters, right? So this load, this load weights into GPT function. What this does is that it takes the GPT2 parameters and it loads all of those parameters into this model. Basically you can think of our model being fully equipped with the best parameters which have directly been loaded from GPT2. In one of the previous lectures which is called pre-training, we have explained this entire code. What is this function load weights into GPT, the GPT model class, et cetera. For now, you can just follow along by understanding that we are loading the parameters of GPT2 into our model so that our model is already pre-trained. And if you have already loaded this before, this should run very fast because the file already exists. If you are running this for the first time, please keep in mind that the total parameter file size which is provided by GPT2, if you see these seven files, if you add it up, it comes to be around 500 megabytes. So it may take time depending on the internet speed. Once this is downloaded, you will see that your model is now updated with all the weights from GPT2. You can even test whether the model was loaded correctly. So you can pass in the input text every effort moves you. And then you have the output function, generate text simple, which we had defined earlier. What this function does is that it takes in the input text, it passes the input text through our model and then it generates an output. So it generates 15 new tokens. So here you can see that every effort moves you is the input and then the 15 new tokens are forward. The first step is to understand the importance of your work. Awesome, right? Which means that the pre-trained parameters are working because this is reasonable. This text makes sense. It is proper English. Now, until now we are at a point where the GPT model parameters are loaded into our architecture. Now we come to the next stage where we have to start fine tuning the model, right? But before we start fine tuning the model as a spam classifier, let's see if our model can already classify spam messages by prompting it with instructions. So note that until now, the model just predicts next tokens. We have not yet trained it to predict whether spam or no spam. But let's see if our model has inherently learned these capabilities. So what I'm going to do is that instead of providing text such as every effort moves you, in the text prompt itself, I'm going to say is the following text spam answer with a yes or no, and then I'm going to give the text, you are a winner. You have specifically selected, you have been specifically selected to receive $1,000 cash or a $2,000 reward. Note that we have not given the model any data set about our spam or no spam so far. We are just checking whether, based on the GPT2 training itself, can it answer this? So when you pass it through the generate text simple function, let's see the answer. So this is the question. And the answer with GPT2 generates is that the following text spam answer with yes or no, you are a winner. So it clearly fails. The model struggles with following instructions. And this is because the model has only undergone pre-training, right? It lacks any fine tuning. So without any classification fine tuning, as we saw the model is not being able to perform correctly and that is expected. So now let us go to step number, let us go to step number two. So step number one was loading pre-trained GPT2 weights into the model and that we have finished right now. And now we are moving to step number two. Step number two is modifying the architecture by adding a classification head. So let me explain this to you in detail actually. So you might be thinking that our model has been trained to predict the next token, right? How are we doing classification? So here is the part where this magic happens. So if you remember the output layer, so let's look at this linear output layer in the text classification or in the text generation task for which this LLM is typically trained on this output layer looks like this, where you have input which is 768 of the embedding dimension size and the output is equal to 50257 because that's the vocabulary size. So when you have every effort moves you, if this is the input, the output for every row, the output will have 50257 columns because that's equal to vocabulary size. So there will be 50257 entries for every 50257 entries for effort, 50257 entries for moves and 50257 entries for you. So if you want to predict the next token after every effort moves you, you look at the final row and then you choose that token ID with the maximum probability. That gives you the next token. This is how you predict the next tokens. But now we don't need the next token prediction, right? Now our job is to simply classify whether it's a yes or no. So what we are going to now do is that we are going to do the same thing, but the output dimension will change. Every effort moves you. This is my input, right? Now for every token, we want two outputs. Either it's a yes or it's a no. So two outputs for every, two outputs for effort, two outputs for moves and two outputs for you. So to get the final answer, we are going to look at the final row, which is you, since it contains all of the previous information. And then we are going to see the yes value and then we are going to see the no value. These values will be indicative of probabilities. So then we are going to, based on which is higher, we'll classify whether it's spam or no spam. So instead of having this final neural network output layer sizes 50257, we are going to replace, replace the original linear output layer with a layer that maps from 768 hidden units into only two units. And what are these two units corresponding to? The two units are corresponding to simply spam versus no spam. This is the only change which we are going to do in the LLM architecture. When I saw this for the first time, I was pretty amazed by it because I had never seen a classification head. So this can be thought of as the classification head right now. So let me just write the name. This can be thought of as a classification head. I was pretty amazed by this because I had only done classification using neural networks and decision trees before. I never thought you can add this classification head on top of a GPT architecture and use that itself as the classifier. It might be over killing it because even a decision tree or a neural network might work, but this is just a fun application to consider that LLMs can actually be used to perform classification tasks. Whether LLMs perform better than neural networks or decision trees, that's a question of open research and that needs to be figured out still. Okay, so this is the classification head now which is added on top of the GPT model architecture and that is used to classify whether the answer is yes or no. Okay, one more thing which I would like to mention before we dive into the code is that we can actually select which layers we want to fine tune. So of course, when you add this classification head, this was not present in the original GPT to architecture. So these parameters we will need to fine tune, but we have an option to choose among all of these parameters, GPT2 has already given me many parameters. So how much do I need to fine tune? So that's a call which you need to make, right? So one thing which I've mentioned here is that since we already start with a pre-trained model as we have loaded the GPT2 weights, it is really not necessary for us to fine tune all the layers. This is because the lower layer such as the token embedding layer, the positional embedding layer, the layer normalization here, et cetera. These lower layers really capture the basic language structures and semantics, which are applicable across a wide range of tasks and data set. This is very important. The lower layers, if you see, the lower layers have token embedding which captures captures the semantic meaning. It has the positional embedding. And then we have some amount of multi head attention, et cetera, where token embeddings are converted into context vectors or input embeddings are converted into context vectors, which contain information about how much attention one token pays to all other tokens. And GPT2 has been trained on huge amounts of text. So it already contains some information about meaning, et cetera. So if you give an email, let's say, there is already some intuition baked in about whether this email is kind of a spam or what kind of information is it representing. That information is already captured in this lower layer somehow because GPT2 is a very smart and intelligent model. It does capture this information. So we have a choice as to which layers we want to fine tune. So the choice which we are making here is that we are only going to fine tune the last layers. So we are definitely going to fine tune this classification head. We will definitely fine tune the final linear normalization layer, which has the scale and the shift parameters. And we are going to fine tune the final transformer block. So remember the GPT2 architecture had 12 transformer blocks like this, right? Instead of fine tuning all of the 12 transformer blocks, we are only going to fine tune the final transformer block. We are going to assume that all the other transformer blocks inherently contains some information about what the text in the data represents. So this is a good mix between achieving good accuracy as well as reducing the computational cost. Remember if you were to fine tune everything again, then what is the purpose of loading pre-trained weights, right? The reason we loaded pre-trained weights from GPT2 is because it would fully capture some semantic meaning as to what the text represents. So what we are going to do is that we are only going to fine tune three things. We are going to fine tune the final output head, which is this classification head over here, because of course that was not present in GPT2. Then we are going to fine tune the final transformer block, the 12 transformer block, and we are going to fine tune the final layer normalization module. That is what we are going to do. These three things we are going to fine tune, rest all the other parameters we are going to freeze, which means we are not going to train the remaining parameters. And one more thing which I wanted to explain before we go to the code is that, let's see here, right? So every token will produce output two tokens, right? So let's say every effort moves you is my sentence. So what is the output, whether it's spam or not spam? Which of these four tokens should I look at? Should I look at the first token, the second token, third token, or fourth token? Because all of them will have this yes, no values. Which token should I look at? So here there's a nice schematic to mention that why should we always extract the last output token? We should always extract the last output token because the last token is the only one which with an attention score to all the other tokens. If you look at the second token, let's say, it will only contain the attention with respect to first token. If you look at the third token, it will only contain attention with respect to previous two tokens. Whereas the last token has all the information. It contains attention with respect to all the previous tokens. So if you want to predict whether it's spam or not spam, you want to predict from that row which contains maximum amount of information present in the sentence. So that is equal to the last token right here. So we are going to extract the last token output row and we are going to use that to predict whether the email is spam or whether the email is not a spam. So this is exactly all of this is what I'm going to show you in the code right now. So let's go to code. The first thing which we are going to do is add a classification head at the top which is what I showed you over here in the figure. We are going to replace this original output head with the classification head. So in this section, we modify the pre-trained large language model to prepare it for classification fine tuning. To do this, we replace the original output layer which maps the hidden representation to a vocabulary size of 50257 with a smaller output layer that maps to only two classes, zero and one. So look at this, we want this kind of an output layer which only has two outputs, either zero or one. So two neurons at the end. So one thing which I would like to mention is there, mention is that we could technically use a single output node since we are dealing with a binary classification task, right? However, this is not a generic approach. If we use a single output head, that's not generic if we have more number of classes. So here what we are doing is that we are doing a more general approach. What we are going to say when we code the model architecture is that we are going to say that the final number of output nodes should be equal to the number of classes. So we are not hard coding the output nodes but we are getting the number of classes and we are setting the final number of output nodes equal to that. So for example, if we have three classes such as technology, sports or medicine, our same code is going to work for this modification because then the final number of output nodes will be equal to three. That's just a small detail which I wanted to mention. So before we construct the model architecture, we can print the original model architecture. So we print out the original model architecture and you can see that there are 12 transformer blocks. So here you see, so the number of transformer block goes from zero to 11. That's why there are 12 transformer blocks and there is an output projection layer at the end. Awesome. So this is the output head. So here you see this has input dimension of 768 and output feature dimension of 50257. This is the one which we plan to change to two. Instead of 50257, we just want two as the output features. So as discussed earlier, the GPT model consists of embedding layers, token embedding and positional embedding followed by 12 identical transformer block followed by a final layer normalization and the output layer, output head. So what we are going to do is that we are going to replace the output head with a new output layer. As we have illustrated in this figure over here, we want to replace this original output head with this new output head, right? To do that, to get the model ready for classification fine tuning, we first freeze the model, which means that we are going to first make all the layers non-trainable. So the way to freeze the entire model is that we just do, for all the parameters in model.parameters, we say that requires grad is equal to false, which means that we are not going to update this parameter at all, which means that we are going to freeze all the model parameters. Then we are going to tell this model which are the parameters which we are going to fine tune. So as I mentioned, there are three sets of parameters which we are going to fine tune. There is the final output head, there is the final transformer block and there is the final layer norm module. So first let's modify the final output head architecture. So we are going to say that model.outoutputhead is now, the size is input features are the embedding dimension. The input feature remains the same, that's equal to 768. The output features now is equal to the number of classes. So if number of classes equal to two, the output features will be two, which is in this case spam versus no spam. If number of classes is three, the output features will be equal to three. So that's one simple change which we make. This indicates to PyTorch that these parameters need to be updated, these parameters need to change. Okay, so this new model.outputhead output layer has its requires grad attribute set to true by default, which means that it's the only layer in the model that will be updated during training. So here we have freezed all the parameters, but when we change the model output head structure, the new model output head output layer has requires grad attribute set to true by default, which means we are going to update those parameters. So additionally, as I mentioned, we are going to update two more sets of parameters. We are going to look at the last transformer block, the 12th transformer block, and we are going to modify its parameters as well. And we are going to look at the final layer normalization, which connects the output of the transformer block to the final output head. These we are going to make as trainable. So I mentioned this to you over here, right? The final transformer block and the final layer normalization. Those we are going to make trainable. So here you see what I'm doing. I'm saying that you look at the transformer blocks and this minus one indicates that you look at the last transformer block. You look at the parameters in the last transformer block and then you set all of those parameters to be equal to trainable by setting requires grad equal to true. And then you look at the model final normalization parameters, which would be shift and scale. And those you change to params.required grad equal to true. Now you see there is a lot of scope for experimentation here. You can even switch this off and try to see the result. You can make the parameters of last two transformer blocks to be trainable. You can switch this off. You can see the results. You can maybe make this as false and check the results. So whatever code which I'm showing to you right now, there is a lot of room for exploration over here. Awesome. So now you can see that we have added a new output layer and mark certain layers as trainable or non-trainable. Great. So let us just take one sample input. So the sample input corresponds to do you have time. So this has four token IDs. And what we are going to do is that we are going to pass the inputs through our model now and let's see the output. So as expected, do has two tokens, you has two tokens, have has two tokens and time has two tokens corresponding to spam or no spam. And as I mentioned, we are going to look at the last, we are going to look at the last row and we'll extract only the last row to predict whether spam or no spam. And the reason we saw was that the last row, the last token is the only one with an attention score to all other tokens. So it contains maximum information. Until now we have not done the training, the models, the parameters in this output head, the parameters in this output head and the parameters in the final transformer block, final layer normalization are still random. They have not been trained on our spam and no spam data set, but that's fine. Currently, I just want to show you the output and the output will be random for now, but I just want to show you the dimensions. So when the input is, do you have time? You will see that for four tokens, for each of the token there are two outputs here. And we are going to look at the two outputs of the last token and we are going to see whether for spam, the value is higher or no spam, it's higher. And then we are going to choose the one with the higher value and make our prediction like that. Okay, so remember that we are interested in fine tuning this model so that it returns a class label that indicates whether the model input is spam or not a spam. To achieve this, we don't need to fine tune all the four output rows. As I mentioned, we don't need to fine tune all these four output rows, but we can focus on a single output token. We will focus on the last row corresponding to the last output token since it contains all the information. So to extract the last output token, we are simply going to use this command outputs, colon minus one and colon, which will extract the last output row from this tensor. So the reason why minus one comes in the middle here is that look at the tensor dimension. The number of rows is in the second position, right? So that's why the second position we have to specify minus one since we are looking at the last row. And when you specify this, you'll see that out of these four, the last output is extracted, which is minus 3.58983 and 3.9902. So until now, what we have done is that we have just modified the model architecture, right? We have not trained the model on our dataset. And to train the model on our dataset, what we need to do is that we need to define the loss. We need to define a loss function, and then we need to implement back propagation. That's when the model will be trained. So what we'll be doing in the next section is that we'll be detailing the process of transforming the last token into class label predictions. And then we'll calculate the model accuracy and then we'll calculate the loss function. Once we have the loss function based on our underlying training data, which has been collected from this machine learning UC Irvine repository. Once we have the loss function, then we are ready to do back propagation and then we are ready to fine tune the parameters. So then we'll do the training and testing after that in the subsequent lectures. So next lecture we'll focus on calculating the classification loss and accuracy. Thank you so much, everyone. This brings us to the end of the lecture. We are now quite close to performing this hands-on project and taking it to completion. Because until now what we have done is that we have reached these steps. We have reached step number here where we now the model is ready to be fine-tuned. Now in the next step, we have to just implement the loss and the accuracy evaluation utilities. And then we'll fine-tune the model, test the fine-tuned model on new data as well. So there are a lot of fun lectures coming up. And at the end of this set of lectures, you will have build your own classification fine-tuning completely from scratch. Thank you so much, everyone. I hope you learned a lot. And I look forward to seeing you in the next lecture."
+}

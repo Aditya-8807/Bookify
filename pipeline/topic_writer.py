@@ -1,4 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -29,7 +28,20 @@ Use consistent terminology throughout.
 When citing something from the transcript, add: [Video: "<title>" @ MM:SS]
 When citing a reference, add: [<URL>]
 Where a concept was introduced in a prior section, add: "As introduced in <Topic>..."
-Do NOT invent facts. Only write what is supported by the provided transcript and references."""
+Do NOT invent facts. Only write what is supported by the provided transcript and references.
+
+Only add the following when they genuinely improve understanding — omit them if the prose is clearer on its own.
+
+TABLES — use Markdown pipe tables (| col | col |) only when the content is naturally comparative or grid-structured:
+- Multiple models/variants with numeric differences (parameter counts, sizes)
+- Hyperparameter sets that would be harder to read as prose
+- Layer-by-layer dimension breakdowns
+
+DIAGRAMS — use a fenced ```mermaid block only when a visual adds something prose cannot:
+- A multi-step architecture or data flow that is hard to follow in words
+- An algorithm loop or decision structure where order matters visually
+Keep diagrams concise (≤ 12 nodes). Prefer `flowchart TD` for top-down flows, `graph LR` for relationships.
+Do not add a diagram just to have one — if the prose already explains it clearly, skip it."""
 
 
 def _fmt_ts(seconds: float) -> str:
@@ -88,7 +100,7 @@ def write_topic(
 
     prose = llm_client.complete(system=WRITE_SYSTEM, user=user)
 
-    result = {"name": slug, "slug": slug, "prose": prose}
+    result = {"name": group["name"], "slug": slug, "prose": prose}
     save_checkpoint("04_topics", slug, result, base_dir=base_dir)
     return result
 
@@ -97,7 +109,7 @@ def write_all_topics(
     groups: List[TopicGroup],
     transcripts: List[CorrectedTranscript],
     llm_client,
-    batch_size: int = 4,
+    batch_size: int = 1,
     base_dir: Path = Path("checkpoints"),
     progress=None,
 ) -> List[Dict]:
@@ -111,15 +123,9 @@ def write_all_topics(
         progress.add_stage("Stage 4: Write Topics", total=len(groups))
 
     results = []
-    with ThreadPoolExecutor(max_workers=batch_size) as executor:
-        futures = {
-            executor.submit(write_topic, g, transcripts, overlaps_map, llm_client, base_dir): g
-            for g in groups
-        }
-        for future in as_completed(futures):
-            results.append(future.result())
-            if progress:
-                progress.advance("Stage 4: Write Topics")
+    for group in groups:
+        results.append(write_topic(group, transcripts, overlaps_map, llm_client, base_dir))
+        if progress:
+            progress.advance("Stage 4: Write Topics")
 
-    slug_order = {g["slug"]: g["dependency_order"] for g in groups}
-    return sorted(results, key=lambda x: slug_order.get(x["slug"], 0))
+    return results

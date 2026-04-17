@@ -1,3 +1,6 @@
+import re
+import subprocess
+import tempfile
 from pathlib import Path
 
 import markdown as md_lib
@@ -38,6 +41,52 @@ pre {
 hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
 a { color: #1a1a1a; }
 strong { font-weight: bold; }
+
+/* ── Tables ──────────────────────────────────────────────────── */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5em 0;
+    font-size: 11pt;
+    page-break-inside: avoid;
+}
+thead th {
+    background: #2c3e50;
+    color: #ffffff;
+    padding: 0.6em 1em;
+    text-align: left;
+    font-weight: bold;
+}
+tbody td {
+    padding: 0.5em 1em;
+    border-bottom: 1px solid #ddd;
+    vertical-align: top;
+}
+tbody tr:nth-child(even) { background: #f4f6f8; }
+tbody tr:hover { background: #eef1f4; }
+
+/* ── Mermaid diagrams ────────────────────────────────────────── */
+.mermaid-diagram {
+    text-align: center;
+    margin: 2em auto;
+    page-break-inside: avoid;
+}
+.mermaid-diagram svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+.mermaid-fallback {
+    background: #f8f8f8;
+    border: 1px dashed #aaa;
+    border-radius: 4px;
+    padding: 1em;
+    font-family: "Courier New", monospace;
+    font-size: 9pt;
+    text-align: left;
+    white-space: pre;
+}
 """
 
 TITLE_PAGE_HTML = """
@@ -47,11 +96,43 @@ TITLE_PAGE_HTML = """
 </div>
 """
 
+_MERMAID_PATTERN = re.compile(r"```mermaid\s*\n(.*?)\n```", re.DOTALL)
+
+
+def _render_mermaid_blocks(markdown_text: str) -> str:
+    """Replace ```mermaid blocks with inline SVG (or a fallback pre block)."""
+    def replace(match: re.Match) -> str:
+        code = match.group(1).strip()
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                inp = Path(tmpdir) / "diagram.mmd"
+                out = Path(tmpdir) / "diagram.svg"
+                inp.write_text(code, encoding="utf-8")
+                result = subprocess.run(
+                    ["mmdc", "-i", str(inp), "-o", str(out),
+                     "-b", "transparent", "--quiet"],
+                    capture_output=True, text=True, timeout=30,
+                )
+                if result.returncode == 0 and out.exists():
+                    svg = out.read_text(encoding="utf-8")
+                    svg = re.sub(r"<\?xml[^>]*\?>", "", svg).strip()
+                    return f'\n<div class="mermaid-diagram">\n{svg}\n</div>\n'
+        except Exception:
+            pass
+        # Fallback: display the raw code in a styled box
+        escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        return f'\n<div class="mermaid-diagram"><pre class="mermaid-fallback">{escaped}</pre></div>\n'
+
+    return _MERMAID_PATTERN.sub(replace, markdown_text)
+
 
 def markdown_to_html(book_markdown: str, title: str = "Building LLMs from Scratch") -> str:
+    # Convert Mermaid blocks to inline SVG before markdown processing
+    processed = _render_mermaid_blocks(book_markdown)
+
     extensions = ["fenced_code", "tables", "toc"]
     converter = md_lib.Markdown(extensions=extensions)
-    body_html = converter.convert(book_markdown)
+    body_html = converter.convert(processed)
 
     toc_html = ""
     if hasattr(converter, "toc"):

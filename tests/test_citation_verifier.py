@@ -1,50 +1,15 @@
 import pytest
 from unittest.mock import MagicMock
-from pipeline.citation_verifier import extract_claims, score_claim, verify_topic
-
-
-def test_extract_claims_returns_list():
-    mock_client = MagicMock()
-    mock_client.complete_json.return_value = {
-        "claims": [
-            "The transformer uses multi-head attention.",
-            "Softmax normalizes attention scores to sum to 1.",
-        ]
-    }
-    claims = extract_claims("Some prose about transformers.", mock_client)
-    assert len(claims) == 2
-    assert "transformer" in claims[0]
-
-
-def test_score_claim_verified():
-    mock_client = MagicMock()
-    mock_client.complete_json.return_value = {
-        "score": 0.95,
-        "passage": "The transformer uses multi-head attention.",
-    }
-    score, passage = score_claim(
-        claim="The transformer uses multi-head attention.",
-        source_texts=["The transformer uses multi-head attention with 8 heads."],
-        llm_client=mock_client,
-    )
-    assert score >= 0.8
-    assert "transformer" in passage
-
-
-def test_score_claim_unverified():
-    mock_client = MagicMock()
-    mock_client.complete_json.return_value = {"score": 0.2, "passage": ""}
-    score, passage = score_claim(
-        claim="The model has exactly 175 billion parameters.",
-        source_texts=["The model was trained on a large dataset."],
-        llm_client=mock_client,
-    )
-    assert score < 0.5
+from pipeline.citation_verifier import verify_topic, verify_all_topics
 
 
 def test_verify_topic_skips_if_checkpoint_exists(tmp_checkpoints):
     from utils.checkpoint import save_checkpoint
-    save_checkpoint("04b_verified", "attention", {"name": "attention", "prose": "verified"}, base_dir=tmp_checkpoints)
+    save_checkpoint(
+        "04b_verified", "attention",
+        {"name": "attention", "slug": "attention", "prose": "verified", "citations": [], "stats": {}},
+        base_dir=tmp_checkpoints,
+    )
     mock_client = MagicMock()
     topic = {"name": "attention", "slug": "attention", "prose": "original"}
     result = verify_topic(topic, [], mock_client, base_dir=tmp_checkpoints)
@@ -52,14 +17,54 @@ def test_verify_topic_skips_if_checkpoint_exists(tmp_checkpoints):
     assert result["prose"] == "verified"
 
 
-def test_verify_topic_keeps_verified_claims(tmp_checkpoints):
+def test_verify_topic_single_pass(tmp_checkpoints):
     mock_client = MagicMock()
-    mock_client.complete_json.side_effect = [
-        {"claims": ["The transformer uses multi-head attention."]},
-        {"score": 0.95, "passage": "transformer uses multi-head attention"},
-    ]
-    topic = {"name": "attention", "slug": "attention-test",
+    mock_client.complete_json.return_value = {
+        "prose": "The transformer uses multi-head attention.",
+        "stats": {"verified": 1, "rewritten": 0, "removed": 0},
+    }
+    topic = {"name": "Attention", "slug": "attention-test",
              "prose": "The transformer uses multi-head attention."}
     result = verify_topic(topic, ["transformer uses multi-head attention"], mock_client, base_dir=tmp_checkpoints)
     assert "transformer" in result["prose"].lower()
     assert result["stats"]["verified"] == 1
+    mock_client.complete_json.assert_called_once()
+
+
+def test_verify_topic_uses_sources(tmp_checkpoints):
+    """Verify source texts are included in the LLM prompt."""
+    mock_client = MagicMock()
+    mock_client.complete_json.return_value = {
+        "prose": "Fixed prose.",
+        "stats": {"verified": 0, "rewritten": 1, "removed": 0},
+    }
+    topic = {"name": "Test", "slug": "test-slug", "prose": "Some claim here."}
+    verify_topic(topic, ["source text 1", "source text 2"], mock_client, base_dir=tmp_checkpoints)
+    call_args = mock_client.complete_json.call_args
+    assert "source text 1" in call_args.kwargs.get("user", "") or "source text 1" in str(call_args)
+
+
+def test_verify_all_topics_sequential(tmp_checkpoints):
+    mock_client = MagicMock()
+    mock_client.complete_json.return_value = {
+        "prose": "Verified prose.",
+        "stats": {"verified": 1, "rewritten": 0, "removed": 0},
+    }
+    topics = [
+        {"name": "Topic A", "slug": "topic-a", "prose": "Prose A."},
+        {"name": "Topic B", "slug": "topic-b", "prose": "Prose B."},
+    ]
+    groups_by_slug = {
+        "topic-a": {"video_ids": ["v1"], "ref_contents": {}},
+        "topic-b": {"video_ids": ["v2"], "ref_contents": {}},
+    }
+    transcripts_by_vid = {
+        "v1": {"full_text": "source a"},
+        "v2": {"full_text": "source b"},
+    }
+    results = verify_all_topics(
+        topics, groups_by_slug, transcripts_by_vid,
+        llm_client=mock_client, base_dir=tmp_checkpoints,
+    )
+    assert len(results) == 2
+    assert mock_client.complete_json.call_count == 2

@@ -1,4 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Dict
 from urllib.parse import urlparse, parse_qs
@@ -51,21 +50,22 @@ def fetch_video_audio(
     audio_path = str(audio_dir / f"{vid}.mp3")
     video_url = f"https://www.youtube.com/watch?v={vid}"
 
-    # Fetch full metadata (description) before downloading audio
+    # Fetch full metadata (description); skip if audio already on disk.
+    audio_exists = Path(audio_path).exists()
     meta_opts = {"quiet": True, "skip_download": True}
     with YoutubeDL(meta_opts) as ydl:
         full_info = ydl.extract_info(video_url, download=False) or {}
     description = full_info.get("description", video.get("description", ""))
 
-    # Download audio only
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": str(audio_dir / f"{vid}.%(ext)s"),
-        "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
-        "quiet": True,
-    }
-    with YoutubeDL(ydl_opts) as ydl:
-        ydl.download([video_url])
+    if not audio_exists:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": str(audio_dir / f"{vid}.%(ext)s"),
+            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
+            "quiet": True,
+        }
+        with YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
 
     ref_urls = filter_description_urls(description, llm_client)
 
@@ -84,7 +84,7 @@ def fetch_video_audio(
 def fetch_all(
     playlist_url: str,
     llm_client,
-    batch_size: int = 4,
+    batch_size: int = 1,
     base_dir: Path = Path("checkpoints"),
     audio_dir: Path = Path("checkpoints/audio"),
     progress=None,
@@ -94,14 +94,9 @@ def fetch_all(
         progress.add_stage("Stage 1: Fetch", total=len(videos))
 
     results = []
-    with ThreadPoolExecutor(max_workers=batch_size) as executor:
-        futures = {
-            executor.submit(fetch_video_audio, v, llm_client, base_dir, audio_dir): v
-            for v in videos
-        }
-        for future in as_completed(futures):
-            results.append(future.result())
-            if progress:
-                progress.advance("Stage 1: Fetch")
+    for video in videos:
+        results.append(fetch_video_audio(video, llm_client, base_dir, audio_dir))
+        if progress:
+            progress.advance("Stage 1: Fetch")
 
-    return sorted(results, key=lambda x: x["playlist_index"])
+    return results

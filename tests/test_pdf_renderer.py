@@ -36,6 +36,42 @@ def test_markdown_to_html_wraps_in_html_document():
     assert "My Book" in html
 
 
+def test_markdown_to_html_renders_table():
+    md = "| Model | Params |\n|-------|--------|\n| GPT-2 | 117M |\n| GPT-3 | 175B |"
+    html = markdown_to_html(md, title="Test")
+    assert "<table" in html
+    assert "GPT-2" in html
+    assert "175B" in html
+
+
+def test_markdown_to_html_mermaid_fallback(mocker):
+    """When mmdc is unavailable, mermaid block falls back to a styled pre block."""
+    mocker.patch("subprocess.run", side_effect=FileNotFoundError("mmdc not found"))
+    md = "```mermaid\nflowchart TD\n    A --> B\n```"
+    html = markdown_to_html(md, title="Test")
+    assert "mermaid-fallback" in html
+    assert "A --&gt; B" in html or "A --> B" in html
+
+
+def test_markdown_to_html_mermaid_renders_svg(mocker, tmp_path):
+    """When mmdc succeeds, the SVG is inlined."""
+    fake_svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>'
+
+    def fake_run(cmd, **kwargs):
+        # Write fake SVG to the output path argument
+        out_idx = cmd.index("-o") + 1
+        Path(cmd[out_idx]).write_text(fake_svg)
+        result = mocker.MagicMock()
+        result.returncode = 0
+        return result
+
+    mocker.patch("subprocess.run", side_effect=fake_run)
+    md = "```mermaid\nflowchart TD\n    A --> B\n```"
+    html = markdown_to_html(md, title="Test")
+    assert "mermaid-diagram" in html
+    assert "<svg" in html
+
+
 @requires_weasyprint
 def test_render_pdf_creates_file(tmp_path, mocker):
     mock_html_class = mocker.patch("weasyprint.HTML")
