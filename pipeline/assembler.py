@@ -56,8 +56,8 @@ def assemble_book(
         urls = group.get("ref_urls", [])
         if urls:
             references_section += f"## {topic['name']}\n"
-            for url in urls:
-                references_section += f"- [{url}]({url})\n"
+            for i, url in enumerate(urls, 1):
+                references_section += f"{i}. [{url}]({url})\n"
             references_section += "\n"
 
     glossary_section = "# Glossary\n\n"

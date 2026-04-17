@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -20,33 +21,38 @@ Return JSON:
 Return an empty overlaps list if no overlaps found."""
 
 
-WRITE_SYSTEM = """You are writing a section of a technical book about building LLMs from scratch.
-Write clear, educational prose — not bullet points, not a transcript summary.
-Structure: opening context → concept explanation → worked examples → section summary.
-Strip first-person instructor voice ("In this video I will...").
-Heading levels: use ## for section headings, ### for subsections. Never use # (h1) — those are reserved for chapter titles added by the book assembler.
-Use consistent terminology throughout.
-When citing something from the transcript, add: [Video: "<title>" @ MM:SS]
-When citing a reference, add: [<URL>]
-Where a concept was introduced in a prior section, add: "As introduced in <Topic>..."
-Do NOT invent facts. Only write what is supported by the provided transcript and references.
+WRITE_SYSTEM = """You are writing a chapter of a deep technical book on building LLMs from scratch.
 
-Only add the following when they genuinely improve understanding — omit them if the prose is clearer on its own.
+CRITICAL DEPTH REQUIREMENT:
+- Target 2500+ words for this chapter.
+- This is NOT a summary. Cover all major concepts, mechanisms, and implementation details from the provided sources.
+- If content is dense, go step-by-step with concrete examples rather than compressing.
 
-TABLES — use Markdown pipe tables (| col | col |) only when the content is naturally comparative or grid-structured:
-- Multiple models/variants with numeric differences (parameter counts, sizes)
-- Hyperparameter sets that would be harder to read as prose
-- Layer-by-layer dimension breakdowns
-REQUIRED: Every table MUST be preceded by exactly this line: [TABLE: Descriptive title here]
-Never write a table without this marker — if you don't have a good title, write prose instead.
+STYLE AND STRUCTURE:
+- Educational prose, not bullet-point summaries.
+- Strip first-person instructor voice ("In this video I will...").
+- Use ## for major sections and ### for subsections.
+- Never use # (h1); chapter title is injected by the assembler.
+- Include an opening context section and a closing summary section.
+- Maintain clear transitions and avoid abrupt topic jumps.
 
-DIAGRAMS — use a fenced ```mermaid block only when a visual adds something prose cannot:
-- A multi-step architecture or data flow that is hard to follow in words
-- An algorithm loop or decision structure where order matters visually
-Keep diagrams concise (≤ 12 nodes). Prefer `flowchart TD` for top-down flows, `graph LR` for relationships.
-Always quote node labels that contain parentheses or special characters: `D["Transformer Blocks (12 layers)"]` not `D[Transformer Blocks (12 layers)]`.
-Always add a caption on the line immediately before the mermaid block: [FIGURE: Descriptive title here]
-Do not add a diagram just to have one — if the prose already explains it clearly, skip it."""
+SOURCE DISCIPLINE:
+- Do NOT invent facts.
+- Every technical claim must be grounded in provided transcripts/references.
+- Transcript citations: [Video: "<title>" @ MM:SS]
+- Reference citations: [<URL>]
+- Keep citations close to the specific claim they support.
+
+FORMAT RULES:
+- Avoid raw markdown artifacts in output. Do not output unmatched code fences.
+- Use fenced ```python code blocks only when real code significantly improves clarity.
+- Use [TABLE: ...] + markdown tables only for truly comparative data.
+- Use [FIGURE: ...] + mermaid only when needed for non-trivial flows.
+"""
+
+
+def _word_count(text: str) -> int:
+    return len(re.findall(r"\b\w+\b", text))
 
 
 def _fmt_ts(seconds: float) -> str:
@@ -59,6 +65,7 @@ def write_topic(
     transcripts: List[CorrectedTranscript],
     overlaps_map: Dict[str, Dict],
     llm_client,
+    min_words: int = 2500,
     base_dir: Path = Path("checkpoints"),
 ) -> Dict[str, Any]:
     slug = group["slug"]
@@ -96,6 +103,17 @@ def write_topic(
     )
 
     prose = llm_client.complete(system=WRITE_SYSTEM, user=user)
+    source_word_budget = _word_count(transcript_text) + _word_count(refs_text)
+    if source_word_budget >= min_words and _word_count(prose) < min_words:
+        prose = llm_client.complete(
+            system=WRITE_SYSTEM,
+            user=(
+                f"{user}\n\n"
+                f"The previous draft was too short ({_word_count(prose)} words). "
+                f"Rewrite this full chapter to at least {min_words} words with deeper technical detail, "
+                f"more worked examples, and full coverage of all key source concepts."
+            ),
+        )
 
     result = {"name": group["name"], "slug": slug, "prose": prose}
     save_checkpoint("04_topics", slug, result, base_dir=base_dir)
@@ -115,6 +133,7 @@ def write_all_topics(
     transcripts: List[CorrectedTranscript],
     llm_client,
     batch_size: int = 1,
+    min_words_per_topic: int = 2500,
     base_dir: Path = Path("checkpoints"),
     progress=None,
 ) -> List[Dict]:
@@ -129,7 +148,16 @@ def write_all_topics(
 
     results = []
     for group in groups:
-        results.append(write_topic(group, transcripts, overlaps_map, llm_client, base_dir))
+        results.append(
+            write_topic(
+                group,
+                transcripts,
+                overlaps_map,
+                llm_client,
+                min_words=min_words_per_topic,
+                base_dir=base_dir,
+            )
+        )
         if progress:
             progress.advance("Stage 4: Write Topics")
 

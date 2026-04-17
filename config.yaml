@@ -11,6 +11,7 @@ llm:
 pipeline:
   batch_size: 4           # parallel videos per mini-batch
   rate_limit_rpm: 6       # keep requests slower for free-tier reliability
+  min_words_per_topic: 2500  # target chapter depth; higher = longer book
 
 paths:
   checkpoints: checkpoints

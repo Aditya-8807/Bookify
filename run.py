@@ -146,7 +146,12 @@ def main():
         # ── Stage 5: Write + verify + polish (LLM) ───────────────────────
         if _run(5):
             written = write_all_topics(
-                groups, corrected, llm, base_dir=base_dir, progress=progress,
+                groups,
+                corrected,
+                llm,
+                min_words_per_topic=config.get("pipeline", {}).get("min_words_per_topic", 2500),
+                base_dir=base_dir,
+                progress=progress,
             )
             trans_by_vid = {t["video_id"]: t for t in corrected}
             groups_by_slug = {g["slug"]: g for g in groups}

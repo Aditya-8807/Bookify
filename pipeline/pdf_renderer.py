@@ -26,7 +26,7 @@ body {
     color: #1a1a1a;
     max-width: 100%;
 }
-h1 { font-size: 26pt; margin-top: 0; margin-bottom: 0.4em; page-break-before: always; }
+h1 { font-size: 26pt; margin-top: 0; margin-bottom: 0.4em; page-break-before: auto; }
 h2 { font-size: 16pt; margin-top: 1.4em; margin-bottom: 0.3em; border-bottom: 1px solid #ccc; padding-bottom: 0.2em; }
 h3 { font-size: 13pt; margin-top: 1em; margin-bottom: 0.2em; }
 p { margin: 0.4em 0 0.6em; text-align: justify; }
@@ -116,14 +116,14 @@ tbody tr:nth-child(even) { background: #f4f6f8; }
 /* ── Figures (Mermaid diagrams) ──────────────────────────────── */
 figure.diagram {
     text-align: center;
-    margin: 1em auto;
-    page-break-inside: avoid;
+    margin: 0.5em auto 0.8em;
+    page-break-inside: auto;
     page-break-before: auto;
     counter-increment: figure-counter;
 }
 figure.diagram img {
     max-width: 85%;
-    max-height: 420px;
+    max-height: 340px;
     height: auto;
     width: auto;
     display: block;
@@ -168,7 +168,10 @@ _TABLE_CAPTION_RE = re.compile(r"\[TABLE:\s*([^\]\n]+)\]\s*\n(\|)", re.MULTILINE
 
 # Citation regexes — applied to already-converted HTML so markdown never mangles
 # the injected <sup>/<a> tags.
-_VIDEO_CITE_RE = re.compile(r'\[Video:\s*"([^"]+)"\s*@\s*(\d+:\d+)\]')
+_VIDEO_CITE_RE = re.compile(
+    r'\[Video:\s*["“](.+?)["”]\s*@\s*([0-9:\s,]+)\]',
+    re.DOTALL,
+)
 # Matches [<a href="url">...</a>] — produced when markdown autolinks [<https://url>]
 _URL_CITE_HTML_RE = re.compile(r'\[<a\s[^>]*href="(https?://[^"]+)"[^>]*>[^<]*</a>\]')
 # Matches plain [https://url] as a fallback (no angle brackets)
@@ -214,19 +217,9 @@ def _process_citations_in_html(html: str, id_prefix: str = "c") -> tuple:
 
 
 def _process_citations_all_html(html: str) -> str:
-    """Split rendered HTML at <h1> chapter boundaries, number citations
-    per-chapter, then append all footnote blocks at the very end of the
-    document so they always appear after References & Resources."""
-    parts = re.split(r'(?=<h1[\s>])', html, flags=re.IGNORECASE)
-    processed = []
-    all_footnotes = []
-    for i, part in enumerate(parts):
-        if part.strip():
-            body, footnotes = _process_citations_in_html(part, id_prefix=f"ch{i}")
-            processed.append(body)
-            if footnotes:
-                all_footnotes.append(footnotes)
-    return "\n".join(processed) + ("\n" + "\n".join(all_footnotes) if all_footnotes else "")
+    """Apply one global citation index and append a single footnotes block."""
+    body, footnotes = _process_citations_in_html(html, id_prefix="fn")
+    return body + ("\n" + footnotes if footnotes else "")
 
 # Characters inside node labels that need quoting in Mermaid
 _NEEDS_QUOTING = re.compile(r"\(|\)|->|<-|::")
@@ -247,6 +240,37 @@ def _sanitize_mermaid(code: str) -> str:
         return m.group(0)
 
     return re.sub(r"\[([^\[\]]+)\]", quote_label, code)
+
+
+def _normalize_markdown_blocks(markdown_text: str) -> str:
+    """Normalize common malformed LLM markdown so renderer can parse reliably."""
+    text = markdown_text.replace("\r\n", "\n")
+
+    # Promote flowchart/graph fenced blocks to proper mermaid fences.
+    text = re.sub(
+        r'(\[FIGURE:\s*[^\]\n]+\]\s*\n)```(flowchart|graph)\s+([^\n]+)',
+        lambda m: f"{m.group(1)}```mermaid\n{m.group(2)} {m.group(3)}",
+        text,
+    )
+
+    # Drop orphan figure caption markers that are not followed by a mermaid block.
+    text = re.sub(
+        r'^\[FIGURE:\s*[^\]\n]+\]\s*\n(?!```mermaid)',
+        '',
+        text,
+        flags=re.MULTILINE,
+    )
+
+    # Ensure fenced blocks start on their own line so markdown parses them.
+    text = re.sub(r'([^\n])(```(?:[a-zA-Z0-9_-]+)?)', r"\1\n\2", text)
+
+    # Ensure headings start on their own line (fixes leaked ### headings).
+    text = re.sub(r'([^\n])(#{2,3}\s)', r"\1\n\2", text)
+
+    # Avoid runaway vertical whitespace after normalization.
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    return text
 
 
 def _render_mermaid_blocks(markdown_text: str) -> str:
@@ -315,6 +339,7 @@ def _inject_captions_into_html(html: str) -> str:
 
 
 def markdown_to_html(book_markdown: str, title: str = "Building LLMs from Scratch") -> str:
+    book_markdown = _normalize_markdown_blocks(book_markdown)
     # 1. Extract [TABLE: title] markers before markdown eats them
     processed = _inject_table_captions(book_markdown)
     # 2. Render mermaid blocks (with optional [FIGURE: title]) to PNG figures
