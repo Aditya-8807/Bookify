@@ -119,6 +119,21 @@ def _sanitize_mermaid(code: str) -> str:
     return re.sub(r"\[([^\[\]]+)\]", quote_label, code)
 
 
+def _fix_svg_dimensions(svg: str, max_width_px: int = 480) -> str:
+    """Set explicit pixel width/height on the SVG so WeasyPrint doesn't
+    scale a large viewBox to a full-page height."""
+    vb = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg)
+    if vb:
+        vb_w, vb_h = float(vb.group(1)), float(vb.group(2))
+        w = min(max_width_px, int(vb_w))
+        h = int(w * vb_h / vb_w)
+        # Replace width / height attrs and strip inline max-width style
+        svg = re.sub(r'\bwidth="[^"]*"', f'width="{w}px"', svg)
+        svg = re.sub(r'\bheight="[^"]*"', f'height="{h}px"', svg)
+        svg = re.sub(r'max-width:[^;]*;?\s*', '', svg)
+    return svg
+
+
 def _render_mermaid_blocks(markdown_text: str) -> str:
     """Replace ```mermaid blocks with inline SVG (or a fallback pre block)."""
     def replace(match: re.Match) -> str:
@@ -136,6 +151,7 @@ def _render_mermaid_blocks(markdown_text: str) -> str:
                 if result.returncode == 0 and out.exists():
                     svg = out.read_text(encoding="utf-8")
                     svg = re.sub(r"<\?xml[^>]*\?>", "", svg).strip()
+                    svg = _fix_svg_dimensions(svg)
                     return f'\n<div class="mermaid-diagram">\n{svg}\n</div>\n'
         except Exception:
             pass
