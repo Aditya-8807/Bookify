@@ -1,3 +1,4 @@
+import base64
 import re
 import subprocess
 import tempfile
@@ -119,43 +120,32 @@ def _sanitize_mermaid(code: str) -> str:
     return re.sub(r"\[([^\[\]]+)\]", quote_label, code)
 
 
-def _fix_svg_dimensions(svg: str, max_width_px: int = 480) -> str:
-    """Set explicit pixel width/height on the SVG so WeasyPrint doesn't
-    scale a large viewBox to a full-page height."""
-    vb = re.search(r'viewBox="0 0 ([\d.]+) ([\d.]+)"', svg)
-    if vb:
-        vb_w, vb_h = float(vb.group(1)), float(vb.group(2))
-        w = min(max_width_px, int(vb_w))
-        h = int(w * vb_h / vb_w)
-        # Replace width / height attrs and strip inline max-width style
-        svg = re.sub(r'\bwidth="[^"]*"', f'width="{w}px"', svg)
-        svg = re.sub(r'\bheight="[^"]*"', f'height="{h}px"', svg)
-        svg = re.sub(r'max-width:[^;]*;?\s*', '', svg)
-    return svg
-
-
 def _render_mermaid_blocks(markdown_text: str) -> str:
-    """Replace ```mermaid blocks with inline SVG (or a fallback pre block)."""
+    """Replace ```mermaid blocks with a PNG <img> (or fallback pre block).
+    PNG avoids all SVG viewBox/scaling issues with WeasyPrint."""
     def replace(match: re.Match) -> str:
         code = _sanitize_mermaid(match.group(1).strip())
         try:
             with tempfile.TemporaryDirectory() as tmpdir:
                 inp = Path(tmpdir) / "diagram.mmd"
-                out = Path(tmpdir) / "diagram.svg"
+                out = Path(tmpdir) / "diagram.png"
                 inp.write_text(code, encoding="utf-8")
                 result = subprocess.run(
                     ["mmdc", "-i", str(inp), "-o", str(out),
-                     "-b", "transparent", "--quiet"],
+                     "-b", "white", "--quiet", "-w", "900"],
                     capture_output=True, text=True, timeout=30,
                 )
                 if result.returncode == 0 and out.exists():
-                    svg = out.read_text(encoding="utf-8")
-                    svg = re.sub(r"<\?xml[^>]*\?>", "", svg).strip()
-                    svg = _fix_svg_dimensions(svg)
-                    return f'\n<div class="mermaid-diagram">\n{svg}\n</div>\n'
+                    b64 = base64.b64encode(out.read_bytes()).decode()
+                    return (
+                        f'\n<div class="mermaid-diagram">'
+                        f'<img src="data:image/png;base64,{b64}" '
+                        f'style="max-width:100%;height:auto;display:block;margin:0 auto;">'
+                        f'</div>\n'
+                    )
         except Exception:
             pass
-        # Fallback: display the raw code in a styled box
+        # Fallback: styled code block
         escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         return f'\n<div class="mermaid-diagram"><pre class="mermaid-fallback">{escaped}</pre></div>\n'
 
