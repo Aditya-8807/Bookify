@@ -18,7 +18,6 @@ def sample_video_meta():
         "description": "Paper: https://arxiv.org/abs/1706.03762\nSupport: https://patreon.com/xyz",
         "playlist_index": 0,
         "ref_urls": [],
-        "audio_path": "checkpoints/audio/abc123.mp3",
     }
 
 

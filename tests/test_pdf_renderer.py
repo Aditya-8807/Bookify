@@ -53,14 +53,13 @@ def test_markdown_to_html_mermaid_fallback(mocker):
     assert "A --&gt; B" in html or "A --> B" in html
 
 
-def test_markdown_to_html_mermaid_renders_svg(mocker, tmp_path):
-    """When mmdc succeeds, the SVG is inlined."""
-    fake_svg = '<svg xmlns="http://www.w3.org/2000/svg"><circle r="10"/></svg>'
+def test_markdown_to_html_mermaid_renders_png(mocker, tmp_path):
+    """When mmdc succeeds, the PNG is embedded as a base64 data URI."""
+    fake_png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
 
     def fake_run(cmd, **kwargs):
-        # Write fake SVG to the output path argument
         out_idx = cmd.index("-o") + 1
-        Path(cmd[out_idx]).write_text(fake_svg)
+        Path(cmd[out_idx]).write_bytes(fake_png)
         result = mocker.MagicMock()
         result.returncode = 0
         return result
@@ -68,8 +67,8 @@ def test_markdown_to_html_mermaid_renders_svg(mocker, tmp_path):
     mocker.patch("subprocess.run", side_effect=fake_run)
     md = "```mermaid\nflowchart TD\n    A --> B\n```"
     html = markdown_to_html(md, title="Test")
-    assert "mermaid-diagram" in html
-    assert "<svg" in html
+    assert 'class="diagram"' in html
+    assert "data:image/png;base64," in html
 
 
 @requires_weasyprint

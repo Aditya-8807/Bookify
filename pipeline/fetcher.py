@@ -39,33 +39,16 @@ def fetch_video_audio(
     video: Dict,
     llm_client,
     base_dir: Path = Path("checkpoints"),
-    audio_dir: Path = Path("checkpoints/audio"),
 ) -> VideoMeta:
     vid = video["video_id"]
     if checkpoint_exists("01_fetch", vid, base_dir=base_dir):
         return load_checkpoint("01_fetch", vid, base_dir=base_dir)
 
-    audio_dir = Path(audio_dir)
-    audio_dir.mkdir(parents=True, exist_ok=True)
-    audio_path = str(audio_dir / f"{vid}.mp3")
     video_url = f"https://www.youtube.com/watch?v={vid}"
-
-    # Fetch full metadata (description); skip if audio already on disk.
-    audio_exists = Path(audio_path).exists()
     meta_opts = {"quiet": True, "skip_download": True}
     with YoutubeDL(meta_opts) as ydl:
         full_info = ydl.extract_info(video_url, download=False) or {}
     description = full_info.get("description", video.get("description", ""))
-
-    if not audio_exists:
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "outtmpl": str(audio_dir / f"{vid}.%(ext)s"),
-            "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3"}],
-            "quiet": True,
-        }
-        with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
 
     ref_urls = filter_description_urls(description, llm_client)
 
@@ -75,7 +58,6 @@ def fetch_video_audio(
         "description": description,
         "playlist_index": video["playlist_index"],
         "ref_urls": ref_urls,
-        "audio_path": audio_path,
     }
     save_checkpoint("01_fetch", vid, meta, base_dir=base_dir)
     return meta
@@ -86,7 +68,6 @@ def fetch_all(
     llm_client,
     batch_size: int = 1,
     base_dir: Path = Path("checkpoints"),
-    audio_dir: Path = Path("checkpoints/audio"),
     progress=None,
 ) -> List[VideoMeta]:
     videos = extract_playlist_videos(playlist_url)
@@ -95,7 +76,7 @@ def fetch_all(
 
     results = []
     for video in videos:
-        results.append(fetch_video_audio(video, llm_client, base_dir, audio_dir))
+        results.append(fetch_video_audio(video, llm_client, base_dir))
         if progress:
             progress.advance("Stage 1: Fetch")
 

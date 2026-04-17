@@ -54,7 +54,7 @@ Every stage saves a checkpoint to disk. A crash or API timeout mid-run loses not
 **1. Clone the repo**
 
 ```bash
-git clone https://github.com/<your-username>/Bookify.git
+git clone https://github.com/Aditya-8807/Bookify.git
 cd Bookify
 ```
 
@@ -96,7 +96,7 @@ Edit `config.yaml` to select your LLM provider and model:
 ```yaml
 llm:
   provider: gemini            # options: gemini | openai | anthropic
-  model: gemini-2.5-flash     # gemini-2.5-flash | gpt-4o | claude-opus-4-7
+  model: gemini-1.5-flash     # gemini-2.5-flash | gpt-4o | claude-opus-4-7
   temperature: 0.3
 
 pipeline:

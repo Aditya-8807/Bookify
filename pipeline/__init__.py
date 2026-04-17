@@ -13,7 +13,6 @@ class VideoMeta(TypedDict):
     description: str
     playlist_index: int
     ref_urls: List[str]
-    audio_path: str
 
 
 class Transcript(TypedDict):

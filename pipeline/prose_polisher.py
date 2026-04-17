@@ -56,6 +56,6 @@ def polish_all_topics(
     for topic in topics:
         results.append(polish_topic(topic, llm_client, base_dir))
         if progress:
-            progress.advance("Stage 4c: Polish")
+            progress.advance("Stage 5c: Polish")
 
     return results

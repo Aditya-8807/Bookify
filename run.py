@@ -66,10 +66,7 @@ def main():
     config = load_config(args.config)
     llm = client_from_config(config)
     batch_size = config.get("pipeline", {}).get("batch_size", 1)
-    whisper_model = config.get("pipeline", {}).get("whisper_model", "small")
-    whisper_compute_type = config.get("pipeline", {}).get("whisper_compute_type", "int8")
     base_dir = Path(config.get("paths", {}).get("checkpoints", "checkpoints"))
-    audio_dir = Path(config.get("paths", {}).get("audio_temp", "checkpoints/audio"))
     output_dir = Path(config.get("paths", {}).get("output", "output"))
 
     progress = PipelineProgress()
@@ -86,7 +83,7 @@ def main():
         if _run(1):
             videos = fetch_all(
                 args.playlist, llm, batch_size=batch_size,
-                base_dir=base_dir, audio_dir=audio_dir, progress=progress,
+                base_dir=base_dir, progress=progress,
             )
             fetch_and_checkpoint_ref_content(videos, base_dir=base_dir, progress=progress)
         else:
@@ -108,12 +105,10 @@ def main():
             print(f"\n[Cost] {get_cost_summary()}")
             return
 
-        # ── Stage 2: Transcribe (Whisper — NO LLM) ───────────────────────
+        # ── Stage 2: Transcribe (YouTube Transcript API — NO LLM) ────────
         if _run(2):
             transcripts = transcribe_all(
-                videos, whisper_model=whisper_model,
-                compute_type=whisper_compute_type,
-                base_dir=base_dir, progress=progress,
+                videos, base_dir=base_dir, progress=progress,
             )
         else:
             keys = list_checkpoints("02_transcripts", base_dir=base_dir)
