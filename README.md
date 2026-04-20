@@ -95,6 +95,47 @@ Audio cache is local-only and ignored from git:
 
 - `checkpoints/audio/`
 
+## Deep single-topic book
+
+`run_deep_topic.py` generates a ~12,000-word standalone PDF for one topic by splitting
+it into 6 focused subtopics and writing each at depth, then verifying, polishing, and
+rendering a single-chapter book.
+
+Default topic: **LLM Architecture & Components** (7 videos — most source material).
+
+```bash
+DYLD_LIBRARY_PATH=/opt/homebrew/lib python run_deep_topic.py
+```
+
+Override the topic:
+
+```bash
+DYLD_LIBRARY_PATH=/opt/homebrew/lib python run_deep_topic.py --slug the-attention-mechanism
+```
+
+Start fresh (clears existing deep checkpoints for that topic):
+
+```bash
+DYLD_LIBRARY_PATH=/opt/homebrew/lib python run_deep_topic.py --fresh
+```
+
+Output: `output/deep_<slug>.pdf`
+
+Deep checkpoints are stored under `checkpoints/deep/<slug>/` and are fully resumable.
+
+### Deep pipeline stages
+
+```mermaid
+flowchart TD
+    A[Load corrected transcripts + refs] --> B[Stage 1: Split into 6 subtopics]
+    B --> C[Stage 2: Write each subtopic ~2000 words]
+    C --> D[Stage 3: Verify citations per subtopic]
+    D --> E[Stage 4: Polish prose per subtopic]
+    E --> F[Stage 5: Assemble + intro + conclusion + glossary]
+    F --> G[Stage 6: Render PDF]
+    G --> H[output/deep_&lt;slug&gt;.pdf]
+```
+
 ## Submission notes
 
 - `.claude/` is ignored and should not be committed.
@@ -106,6 +147,7 @@ Audio cache is local-only and ignored from git:
 ```text
 Bookify/
 ├── run.py
+├── run_deep_topic.py
 ├── config.yaml
 ├── requirements.txt
 ├── README.md
