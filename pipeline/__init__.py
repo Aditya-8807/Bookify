@@ -30,6 +30,12 @@ class CorrectedTranscript(TypedDict):
     corrections: List[Dict]
 
 
+class SubTopic(TypedDict):
+    name: str
+    slug: str
+    description: str
+
+
 class TopicGroup(TypedDict):
     name: str
     slug: str
@@ -38,6 +44,7 @@ class TopicGroup(TypedDict):
     prerequisites: List[str]
     ref_urls: List[str]
     ref_contents: Dict[str, str]
+    subtopics: List["SubTopic"]
 
 
 class Citation(TypedDict):
