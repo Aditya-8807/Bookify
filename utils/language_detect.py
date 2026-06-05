@@ -1,3 +1,4 @@
+import re as _re
 from langdetect import detect, DetectorFactory
 
 DetectorFactory.seed = 42
@@ -8,7 +9,7 @@ _HINGLISH_THRESHOLD = 3
 
 def detect_language(text: str) -> str:
     sample = text[:3000].lower()
-    hits = sum(1 for marker in _HINGLISH_MARKERS if f" {marker} " in sample)
+    hits = sum(1 for marker in _HINGLISH_MARKERS if _re.search(rf'\b{marker}\b', sample))
     if hits >= _HINGLISH_THRESHOLD:
         return "hinglish"
     try:

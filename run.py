@@ -37,6 +37,12 @@ from pipeline.pdf_renderer import markdown_to_html, render_pdf
 from utils.checkpoint import load_checkpoint, list_checkpoints
 from utils.progress import PipelineProgress
 from utils.quality_report import generate_report, print_report
+from pipeline.transcript_dedup import dedup_all
+from pipeline.subtopic_splitter import split_all_topics
+from utils.language_detect import detect_language, language_instruction
+from utils.rag_index import build_index
+from pipeline.topic_writer import write_topic_with_subtopics, coverage_pass
+from llm.client import TokenBudgetExceeded
 
 
 def load_config(path: str = "config.yaml") -> dict:
@@ -129,15 +135,47 @@ def main():
             corrected = [load_checkpoint("02b_corrected", k, base_dir=base_dir) for k in keys]
             corrected.sort(key=lambda t: vid_order.get(t["video_id"], 0))
 
+        # ── Stage 2b: Dedup + language detection (no LLM) ───────────────
+        dedup_threshold = config.get("pipeline", {}).get("dedup_threshold", 0.85)
+        deduped = dedup_all(corrected, threshold=dedup_threshold)
+        removed_count = sum(
+            len(c["segments"]) - len(d["segments"])
+            for c, d in zip(corrected, deduped)
+        )
+        if removed_count:
+            print(f"[Dedup] Removed {removed_count} duplicate segments")
+
+        combined_sample = " ".join(t["full_text"][:500] for t in deduped)
+        detected_lang = detect_language(combined_sample)
+        lang_instr = language_instruction(detected_lang)
+        if lang_instr:
+            print(f"[Lang] Detected '{detected_lang}' — adding translation instruction")
+
         if _stop(4):
             print(f"\n[Cost] {get_cost_summary()}")
             return
 
         # ── Stage 4: Group + order (LLM) ─────────────────────────────────
         if _run(4):
-            groups = group_and_order(corrected, videos, llm, base_dir=base_dir, progress=progress)
+            groups = group_and_order(deduped, videos, llm, base_dir=base_dir, progress=progress)
         else:
             groups = load_checkpoint("03_groups", "groups", base_dir=base_dir)
+
+        # ── Stage 3b: Split topics into subtopics (cheap LLM) ────────────
+        if _run(5):
+            subtopics_per_topic = config.get("pipeline", {}).get("subtopics_per_topic", 5)
+            groups_with_subtopics = split_all_topics(
+                groups, llm, n_subtopics=subtopics_per_topic,
+                base_dir=base_dir, progress=progress,
+            )
+        else:
+            groups_with_subtopics = groups
+
+        # ── Stage 3c: Build RAG index over transcripts (no LLM) ──────────
+        if _run(5):
+            rag_persist = str(base_dir / "rag_index")
+            rag_col = build_index(deduped, persist_dir=rag_persist)
+            print(f"[RAG] Indexed {rag_col.count()} transcript segments")
 
         if _stop(5):
             print(f"\n[Cost] {get_cost_summary()}")
@@ -145,16 +183,35 @@ def main():
 
         # ── Stage 5: Write + verify + polish (LLM) ───────────────────────
         if _run(5):
-            written = write_all_topics(
-                groups,
-                corrected,
-                llm,
-                min_words_per_topic=config.get("pipeline", {}).get("min_words_per_topic", 2500),
-                base_dir=base_dir,
-                progress=progress,
-            )
-            trans_by_vid = {t["video_id"]: t for t in corrected}
-            groups_by_slug = {g["slug"]: g for g in groups}
+            min_words = config.get("pipeline", {}).get("min_words_per_topic", 2500)
+            coverage_target = config.get("pipeline", {}).get("coverage_target", 0.85)
+
+            if progress:
+                progress.add_stage("Stage 5: Write Topics", total=len(groups_with_subtopics))
+
+            written = []
+            try:
+                for group in groups_with_subtopics:
+                    topic_result = write_topic_with_subtopics(
+                        group, rag_col, llm,
+                        lang_instruction=lang_instr,
+                        min_words_per_subtopic=min_words,
+                        base_dir=base_dir,
+                    )
+                    topic_result["prose"] = coverage_pass(
+                        group, deduped, topic_result["prose"], rag_col, llm,
+                        target_coverage=coverage_target, base_dir=base_dir,
+                    )
+                    written.append(topic_result)
+                    if progress:
+                        progress.advance("Stage 5: Write Topics")
+            except TokenBudgetExceeded as e:
+                print(f"\n[Budget] {e} — stopping with {len(written)} chapters written.")
+                if not written:
+                    return
+
+            trans_by_vid = {t["video_id"]: t for t in deduped}
+            groups_by_slug = {g["slug"]: g for g in groups_with_subtopics}
             verified = verify_all_topics(
                 written, groups_by_slug, trans_by_vid,
                 base_dir=base_dir, progress=progress, llm_client=llm,

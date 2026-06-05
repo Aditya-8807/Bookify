@@ -63,3 +63,46 @@ def test_complete_json_strips_markdown_fences(mocker):
     client = LLMClient(provider="openai", model="gpt-4o", temperature=0.3)
     result = client.complete_json(system="Return JSON.", user="Give me a dict")
     assert result == {"key": "value"}
+
+
+from llm.client import TokenBudgetExceeded, client_from_config
+import llm.client as _lc
+
+
+def test_get_spend_usd_returns_float(mocker, monkeypatch):
+    mocker.patch("llm.client.genai.Client")
+    monkeypatch.setattr(_lc, "_total_input_tokens", 0)
+    monkeypatch.setattr(_lc, "_total_output_tokens", 0)
+    client = LLMClient(provider="gemini", model="gemini-flash-latest", temperature=0.3,
+                       api_key="fake-key")
+    assert isinstance(client.get_spend_usd(), float)
+
+
+def test_token_budget_exceeded_raised_when_over_budget(mocker, monkeypatch):
+    mocker.patch("llm.client.genai.Client")
+    monkeypatch.setattr(_lc, "_total_input_tokens", 0)
+    monkeypatch.setattr(_lc, "_total_output_tokens", 0)
+
+    client = _lc.LLMClient(
+        provider="gemini",
+        model="gemini-flash-latest",
+        temperature=0.3,
+        token_budget_usd=0.000001,
+        api_key="fake-key",
+    )
+    monkeypatch.setattr(_lc, "_total_input_tokens", 1_000_000)
+    monkeypatch.setattr(_lc, "_total_output_tokens", 1_000_000)
+
+    import pytest
+    with pytest.raises(TokenBudgetExceeded):
+        client.complete(system="s", user="u")
+
+
+def test_client_from_config_accepts_api_key():
+    config = {
+        "llm": {"provider": "gemini", "model": "gemini-flash-latest", "temperature": 0.3},
+        "pipeline": {"rate_limit_rpm": 0, "token_budget_usd": 5.0},
+    }
+    client = client_from_config(config, api_key="test-key-123")
+    assert client._api_key == "test-key-123"
+    assert client._token_budget_usd == 5.0

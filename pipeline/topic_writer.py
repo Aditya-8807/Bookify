@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 
 from pipeline import CorrectedTranscript, TopicGroup
 from utils.checkpoint import save_checkpoint, load_checkpoint, checkpoint_exists
+from utils.rag_index import query_chunks
 
 
 OVERLAP_SYSTEM = """You are analysing topic groups for a technical book.
@@ -120,6 +121,67 @@ def write_topic(
     return result
 
 
+def write_subtopic(
+    group: TopicGroup,
+    subtopic,
+    rag_col,
+    llm_client,
+    lang_instruction: str = "",
+    min_words: int = 2000,
+    base_dir: Path = Path("checkpoints"),
+) -> str:
+    slug = f"{group['slug']}__{subtopic['slug']}"
+    if checkpoint_exists("04_subtopics", slug, base_dir=base_dir):
+        return load_checkpoint("04_subtopics", slug, base_dir=base_dir)
+
+    chunks = query_chunks(rag_col, f"{group['name']} {subtopic['name']} {subtopic['description']}", n_results=10)
+    transcript_text = "\n".join(
+        f"[{_fmt_ts(c['start'])}] {c['text']}  [Video: \"{c['title']}\"]"
+        for c in chunks
+    )
+
+    system = (lang_instruction + "\n\n" + WRITE_SYSTEM).strip() if lang_instruction else WRITE_SYSTEM
+    user = (
+        f"Chapter: {group['name']}\n"
+        f"Section: {subtopic['name']}\n"
+        f"Scope: {subtopic['description']}\n\n"
+        f"RELEVANT TRANSCRIPT SEGMENTS:\n{transcript_text}"
+    )
+
+    prose = llm_client.complete(system=system, user=user)
+    if _word_count(prose) < min_words:
+        prose = llm_client.complete(
+            system=system,
+            user=user + f"\n\nExpand to at least {min_words} words with deeper technical detail and worked examples.",
+        )
+
+    save_checkpoint("04_subtopics", slug, prose, base_dir=base_dir)
+    return prose
+
+
+def write_topic_with_subtopics(
+    group: TopicGroup,
+    rag_col,
+    llm_client,
+    lang_instruction: str = "",
+    min_words_per_subtopic: int = 2000,
+    base_dir: Path = Path("checkpoints"),
+) -> Dict[str, Any]:
+    slug = group["slug"]
+    if checkpoint_exists("04_topics", slug, base_dir=base_dir):
+        return load_checkpoint("04_topics", slug, base_dir=base_dir)
+
+    sections = []
+    for subtopic in group.get("subtopics", []):
+        prose = write_subtopic(group, subtopic, rag_col, llm_client, lang_instruction, min_words_per_subtopic, base_dir)
+        sections.append(f"### {subtopic['name']}\n\n{prose}")
+
+    full_prose = "\n\n".join(sections)
+    result = {"name": group["name"], "slug": slug, "prose": full_prose}
+    save_checkpoint("04_topics", slug, result, base_dir=base_dir)
+    return result
+
+
 def detect_overlaps(groups: List[TopicGroup], llm_client) -> List[Dict]:
     topics_summary = "\n".join(
         f"Topic: {g['name']} — videos: {g['video_ids']}" for g in groups
@@ -162,3 +224,48 @@ def write_all_topics(
             progress.advance("Stage 4: Write Topics")
 
     return results
+
+
+def coverage_pass(
+    group: TopicGroup,
+    transcripts: List[CorrectedTranscript],
+    written_prose: str,
+    rag_col,
+    llm_client,
+    target_coverage: float = 0.85,
+    base_dir: Path = Path("checkpoints"),
+) -> str:
+    trans_by_id = {t["video_id"]: t for t in transcripts}
+    group_segs = [
+        seg["text"]
+        for vid in group["video_ids"]
+        for seg in trans_by_id.get(vid, {}).get("segments", [])
+        if any(len(w) > 4 for w in seg["text"].lower().split())
+    ]
+    if not group_segs:
+        return written_prose
+
+    prose_lower = written_prose.lower()
+    covered = sum(
+        1 for seg in group_segs
+        if any(word in prose_lower for word in seg.lower().split()[:4] if len(word) > 4)
+    )
+    coverage = covered / len(group_segs)
+
+    if coverage >= target_coverage:
+        return written_prose
+
+    uncovered = [
+        seg for seg in group_segs
+        if not any(word in prose_lower for word in seg.lower().split()[:4] if len(word) > 4)
+    ][:15]
+
+    addendum = llm_client.complete(
+        system=WRITE_SYSTEM,
+        user=(
+            f"The following content from the source material was not covered in the chapter "
+            f"on '{group['name']}'. Write 1-2 focused subsections to cover this material:\n\n"
+            + "\n".join(f"- {s}" for s in uncovered)
+        ),
+    )
+    return written_prose + "\n\n" + addendum

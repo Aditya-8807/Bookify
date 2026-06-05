@@ -1,5 +1,6 @@
 {
   "run.py": 1776445122.665804,
+  "run_deep_topic.py": 1776713921.8039727,
   "pipeline/prose_polisher.py": 1776437903.0304515,
   "pipeline/transcriber.py": 1776439923.8835702,
   "pipeline/__init__.py": 1776422197.5024905,
@@ -30,9 +31,11 @@
   "utils/__init__.py": 1776359023.9748874,
   "utils/progress.py": 1776359437.884899,
   "requirements.txt": 1776422200.4774492,
-  "README.md": 1776457314.8191116,
-  "CLAUDE.md": 1776600965.7720065,
+  "README.md": 1776713921.7863724,
+  "CLAUDE.md": 1776713921.7856903,
   "docs/superpowers/plans/2026-04-16-bookify-implementation.md": 1776456883.6107621,
   "docs/superpowers/specs/2026-04-16-bookify-design.md": 1776456863.7475595,
+  "graphify-out/graph.html": 1776714264.6255138,
+  "graphify-out/GRAPH_REPORT.md": 1776714258.3753645,
   "output/book.pdf": 1776459063.5006955
 }

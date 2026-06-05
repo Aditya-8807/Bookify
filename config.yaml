@@ -9,9 +9,13 @@ llm:
   temperature: 0.3
 
 pipeline:
-  batch_size: 4           # parallel videos per mini-batch
-  rate_limit_rpm: 6       # keep requests slower for free-tier reliability
-  min_words_per_topic: 8000  # target chapter depth; higher = longer book
+  batch_size: 4
+  rate_limit_rpm: 6
+  min_words_per_topic: 2500
+  subtopics_per_topic: 5
+  coverage_target: 0.85
+  token_budget_usd: 5.00
+  dedup_threshold: 0.85
 
 paths:
   checkpoints: checkpoints

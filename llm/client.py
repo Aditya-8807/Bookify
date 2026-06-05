@@ -13,6 +13,10 @@ from google.genai import errors as genai_errors
 
 SUPPORTED_PROVIDERS = {"openai", "anthropic", "gemini"}
 
+
+class TokenBudgetExceeded(Exception):
+    pass
+
 _RETRY_DELAYS = [15, 30, 60, 120, 180, 300]
 
 # Per-provider pricing ($/1M tokens).
@@ -74,7 +78,9 @@ def _clean_json(raw: str) -> str:
 
 
 class LLMClient:
-    def __init__(self, provider: str, model: str, temperature: float, rate_limit_rpm: int = 0):
+    def __init__(self, provider: str, model: str, temperature: float,
+                 rate_limit_rpm: int = 0, api_key: str = None,
+                 token_budget_usd: float = None):
         global _active_provider, _min_request_interval
         if provider not in SUPPORTED_PROVIDERS:
             raise ValueError(f"Unsupported provider: {provider}")
@@ -83,15 +89,18 @@ class LLMClient:
         self.temperature = temperature
         _active_provider = provider
         _min_request_interval = (60.0 / rate_limit_rpm) if rate_limit_rpm > 0 else 0.0
+        self._api_key = api_key
+        self._token_budget_usd = token_budget_usd
         self._client = self._init_client()
 
     def _init_client(self):
         if self.provider == "openai":
-            return OpenAI()
+            return OpenAI(api_key=self._api_key) if self._api_key else OpenAI()
         elif self.provider == "anthropic":
-            return Anthropic()
+            return Anthropic(api_key=self._api_key) if self._api_key else Anthropic()
         else:  # gemini
-            return genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+            key = self._api_key or os.environ["GEMINI_API_KEY"]
+            return genai.Client(api_key=key)
 
     def _call(self, system: str, user: str) -> str:
         global _total_input_tokens, _total_output_tokens
@@ -140,7 +149,22 @@ class LLMClient:
                 _total_output_tokens += getattr(resp.usage_metadata, "candidates_token_count", 0) or 0
             return resp.text
 
+    def get_spend_usd(self) -> float:
+        pricing = _PRICING.get(self.provider, {"input": 0.0, "output": 0.0})
+        return (
+            _total_input_tokens / 1_000_000 * pricing["input"] +
+            _total_output_tokens / 1_000_000 * pricing["output"]
+        )
+
+    def _check_budget(self) -> None:
+        if self._token_budget_usd and self.get_spend_usd() >= self._token_budget_usd:
+            raise TokenBudgetExceeded(
+                f"Token budget ${self._token_budget_usd:.2f} exceeded "
+                f"(spent ${self.get_spend_usd():.4f})"
+            )
+
     def complete(self, system: str, user: str) -> str:
+        self._check_budget()
         last_exc = None
         for attempt, delay in enumerate([0] + _RETRY_DELAYS):
             if delay:
@@ -172,11 +196,13 @@ class LLMClient:
         raise ValueError(f"LLM returned invalid JSON after 3 attempts. Last response: {raw[:200]}")
 
 
-def client_from_config(config: dict) -> LLMClient:
+def client_from_config(config: dict, api_key: str = None) -> LLMClient:
     llm = config["llm"]
     return LLMClient(
         provider=llm["provider"],
         model=llm["model"],
         temperature=llm["temperature"],
         rate_limit_rpm=config.get("pipeline", {}).get("rate_limit_rpm", 0),
+        api_key=api_key,
+        token_budget_usd=config.get("pipeline", {}).get("token_budget_usd"),
     )
